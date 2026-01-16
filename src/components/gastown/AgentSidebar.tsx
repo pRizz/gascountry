@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, SlidersHorizontal, SquarePen } from "lucide-react";
+import { Search, SlidersHorizontal, SquarePen, Github } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AgentListItem } from "./AgentListItem";
@@ -51,12 +51,13 @@ export function AgentSidebar({
 
   return (
     <aside className="w-80 h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
-      {/* Logo */}
+      {/* Logo and Title */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded bg-foreground flex items-center justify-center">
             <span className="text-background font-bold text-sm">G</span>
           </div>
+          <span className="font-semibold text-foreground">Gascountry</span>
         </div>
         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
           <SquarePen className="h-4 w-4" />
@@ -149,6 +150,19 @@ export function AgentSidebar({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Source Code Link */}
+      <div className="px-3 py-3 border-t border-sidebar-border mt-auto">
+        <a
+          href="https://github.com/pRizz/gascountry"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Github className="h-4 w-4" />
+          <span>gascountry source code</span>
+        </a>
       </div>
     </aside>
   );

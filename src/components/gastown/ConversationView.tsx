@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowUp, GitBranch, Loader2, Check, AlertCircle, Clock } from "lucide-react";
+import { ArrowUp, GitBranch, Loader2, Check, AlertCircle, Clock, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { GastownInstance, ChatMessage } from "@/types/gastown";
@@ -79,14 +79,15 @@ export function ConversationView({ instance, onSendMessage }: ConversationViewPr
               <span>{instance.model}</span>
             </div>
           </div>
-          {instance.linesAdded !== undefined && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-diff-add">+{instance.linesAdded}</span>
-              {instance.linesRemoved !== undefined && (
-                <span className="text-diff-remove">-{instance.linesRemoved}</span>
-              )}
-            </div>
-          )}
+          <a
+            href={`https://github.com/${instance.repo}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" />
+            <span>View repo</span>
+          </a>
         </div>
       </div>
 

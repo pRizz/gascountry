@@ -54,13 +54,7 @@ export function AgentListItem({ instance, isActive, onClick }: AgentListItemProp
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            {instance.linesAdded !== undefined && (
-              <span className="text-xs text-diff-add">+{instance.linesAdded}</span>
-            )}
-            {instance.linesRemoved !== undefined && (
-              <span className="text-xs text-diff-remove">-{instance.linesRemoved}</span>
-            )}
-            <span className="text-xs text-muted-foreground">· {instance.repo}</span>
+            <span className="text-xs text-muted-foreground">{instance.repo}</span>
           </div>
         </div>
       </div>
