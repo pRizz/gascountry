@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, SlidersHorizontal, SquarePen, Github } from "lucide-react";
+import { Search, SlidersHorizontal, SquarePen, Github, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AgentListItem } from "./AgentListItem";
@@ -55,7 +55,7 @@ export function AgentSidebar({
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded bg-foreground flex items-center justify-center">
-            <span className="text-background font-bold text-sm">G</span>
+            <Globe className="h-4 w-4 text-background" />
           </div>
           <span className="font-semibold text-foreground">Gascountry</span>
         </div>
