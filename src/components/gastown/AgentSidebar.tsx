@@ -83,14 +83,14 @@ export function AgentSidebar({
         </div>
       </div>
 
-      {/* New Gastown Button */}
+      {/* New Gascountry Button */}
       <div className="px-3 pb-3">
         <Button
           onClick={onNewGastown}
           variant="outline"
           className="w-full justify-center text-sm h-9 border-sidebar-border bg-sidebar-accent hover:bg-accent"
         >
-          New gastown
+          New gascountry
         </Button>
       </div>
 
