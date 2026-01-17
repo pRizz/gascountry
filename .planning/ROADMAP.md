@@ -13,7 +13,7 @@ This roadmap delivers git clone functionality with authentication handling and i
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Cleanup** - Remove dead code and improve DB error handling
-- [ ] **Phase 2: Core Clone** - Basic clone dialog with URL input and default destination
+- [x] **Phase 2: Core Clone** - Basic clone dialog with URL input and default destination
 - [ ] **Phase 3: Clone Progress** - Real-time progress UI during clone operations
 - [ ] **Phase 4: Error Handling** - Helpful error messages for common failure scenarios
 - [ ] **Phase 5: Authentication** - Credential prompts for auth failures
@@ -46,7 +46,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Backend clone endpoint + git clone function
-- [ ] 02-02-PLAN.md — Frontend CloneDialog + RepoSelector integration
+- [x] 02-02-PLAN.md — Frontend CloneDialog + RepoSelector integration
 
 ### Phase 3: Clone Progress
 **Goal**: Users see real-time feedback during clone operations
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Cleanup | 1/1 | Complete | 2026-01-17 |
-| 2. Core Clone | 1/2 | In progress | - |
+| 2. Core Clone | 2/2 | Complete | 2026-01-17 |
 | 3. Clone Progress | 0/? | Not started | - |
 | 4. Error Handling | 0/? | Not started | - |
 | 5. Authentication | 0/? | Not started | - |

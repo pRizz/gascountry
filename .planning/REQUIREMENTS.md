@@ -7,11 +7,11 @@
 
 ### Clone
 
-- [ ] **CLONE-01**: User can open "Clone from URL" dialog from repo selector
-- [ ] **CLONE-02**: User can paste git URL (SSH or HTTPS) and initiate clone
+- [x] **CLONE-01**: User can open "Clone from URL" dialog from repo selector
+- [x] **CLONE-02**: User can paste git URL (SSH or HTTPS) and initiate clone
 - [ ] **CLONE-03**: User sees progress UI during clone operation
-- [ ] **CLONE-04**: Cloned repo is automatically added and selected on success
-- [ ] **CLONE-05**: Clone destination defaults to ~/ralphtown/
+- [x] **CLONE-04**: Cloned repo is automatically added and selected on success
+- [x] **CLONE-05**: Clone destination defaults to ~/ralphtown/
 
 ### Auth
 
@@ -58,11 +58,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLONE-01 | Phase 2 | Pending |
-| CLONE-02 | Phase 2 | Pending |
+| CLONE-01 | Phase 2 | Complete |
+| CLONE-02 | Phase 2 | Complete |
 | CLONE-03 | Phase 3 | Pending |
-| CLONE-04 | Phase 2 | Pending |
-| CLONE-05 | Phase 2 | Pending |
+| CLONE-04 | Phase 2 | Complete |
+| CLONE-05 | Phase 2 | Complete |
 | AUTH-01 | Phase 5 | Pending |
 | AUTH-02 | Phase 5 | Pending |
 | AUTH-03 | Phase 5 | Pending |
@@ -82,4 +82,4 @@
 
 ---
 *Requirements defined: 2026-01-17*
-*Last updated: 2026-01-17 after Phase 1 completion*
+*Last updated: 2026-01-17 after Phase 2 completion*
