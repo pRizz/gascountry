@@ -50,7 +50,24 @@ export interface CloneProgress {
 export type CloneProgressEvent =
   | { type: "progress"; data: CloneProgress }
   | { type: "complete"; data: { repo: Repo; message: string } }
-  | { type: "error"; data: { message: string } };
+  | { type: "error"; data: { message: string; help_steps?: string[] } };
+
+// --- Errors ---
+
+export interface ErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+    help_steps?: string[];
+  };
+}
+
+export interface CloneErrorInfo {
+  message: string;
+  code?: string;
+  help_steps?: string[];
+}
 
 // --- Sessions ---
 
