@@ -71,10 +71,11 @@ Plans:
   2. HTTPS auth failure shows explanation of credential requirements and fix steps
   3. Missing ralph CLI shows clear message about installing ralph and PATH setup
   4. Invalid/missing repo path shows message explaining the issue and how to fix
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Backend error classification with help_steps (CloneError, RalphError::NotFound, repo validation)
+- [ ] 04-02-PLAN.md — Frontend error display with help_steps in CloneDialog
 
 ### Phase 5: Authentication
 **Goal**: Users can provide credentials when initial auth fails
@@ -101,7 +102,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Cleanup | 1/1 | Complete | 2026-01-17 |
 | 2. Core Clone | 2/2 | Complete | 2026-01-17 |
 | 3. Clone Progress | 2/2 | Complete | 2026-01-17 |
-| 4. Error Handling | 0/? | Not started | - |
+| 4. Error Handling | 0/2 | Not started | - |
 | 5. Authentication | 0/? | Not started | - |
 
 ---
