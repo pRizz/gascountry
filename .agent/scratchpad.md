@@ -9,7 +9,7 @@
 - [x] Step 3: Database layer with SQLite
 - [x] Step 4: Repository management API
 - [x] Step 5: Session management API
-- [ ] Step 6: WebSocket infrastructure
+- [x] Step 6: WebSocket infrastructure
 - [ ] Step 7: Ralph process spawning
 - [ ] Step 8: Output streaming to WebSocket
 - [ ] Step 9: Interrupt/cancel functionality
@@ -184,17 +184,52 @@ ralphtown/
 
 ---
 
-## Next: Step 6 - WebSocket Infrastructure
+## Step 6 - COMPLETED
+
+### Changes Made
+- [x] Added axum `ws` feature and `futures` 0.3 dependency to Cargo.toml
+- [x] Created `backend/src/ws/messages.rs` - Client/Server message types with serde serialization
+  - ClientMessage: Subscribe, Unsubscribe, Cancel, Ping
+  - ServerMessage: Subscribed, Unsubscribed, Output, Status, Error, Pong
+  - OutputStream enum: Stdout, Stderr
+  - SessionStatus enum: Idle, Running, Completed, Error, Cancelled
+- [x] Created `backend/src/ws/connections.rs` - ConnectionManager with broadcast channels
+  - Uses tokio broadcast channels for pub/sub per session
+  - Tracks connections and their subscriptions
+  - Supports multiple subscribers per session
+  - Automatic cleanup on disconnect
+- [x] Created `backend/src/ws/mod.rs` - WebSocket handler
+  - Handles WebSocket upgrade at `/api/ws`
+  - Processes client messages (subscribe, unsubscribe, cancel, ping)
+  - Spawns tasks to forward broadcast messages to connected clients
+- [x] Updated `backend/src/api/mod.rs` - Added ConnectionManager to AppState
+- [x] Updated `backend/src/main.rs` - Added ws module and nested ws router
+
+### Files Added/Modified
+- `backend/Cargo.toml` - Added axum ws feature, futures
+- `backend/src/ws/mod.rs` (new) - WebSocket handler and router
+- `backend/src/ws/messages.rs` (new) - Message type definitions
+- `backend/src/ws/connections.rs` (new) - Connection manager with broadcast
+- `backend/src/api/mod.rs` - Added ConnectionManager to AppState
+- `backend/src/main.rs` - Added ws module export and router
+
+### Verification
+- Backend cargo check: ✅ PASS
+- Backend cargo test: ✅ PASS (29 tests - 6 db + 1 health + 8 repo API + 7 session API + 4 ws connections + 3 ws messages)
+- Frontend tests: ✅ PASS (1 test)
+
+---
+
+## Next: Step 7 - Ralph Process Spawning
 
 Tasks:
-- [ ] Add WebSocket dependencies (tokio-tungstenite or axum built-in)
-- [ ] Create `backend/src/ws/mod.rs` - WebSocket handler
-- [ ] Create `backend/src/ws/messages.rs` - Message types (subscribe, unsubscribe, cancel, output, status, error)
-- [ ] Create `backend/src/ws/connections.rs` - Connection manager
-- [ ] Add WebSocket route: `GET /api/ws` → upgrade to WebSocket
-- [ ] Support subscribing to session output by session_id
-- [ ] Use tokio broadcast channels for pub/sub
-- [ ] Add integration tests
+- [ ] Create `RalphManager` struct
+- [ ] Implement `run()` method that spawns `ralph run --autonomous --prompt "..."`
+- [ ] Run ralph as process group leader (for signal handling)
+- [ ] Track running processes by session_id
+- [ ] Enforce 1 instance per repo constraint
+- [ ] Capture exit code and update session status
+- [ ] Add REST endpoint to start ralph: `POST /api/sessions/{id}/run`
 
 ---
 

@@ -1,6 +1,7 @@
 pub mod api;
 pub mod db;
 mod error;
+pub mod ws;
 
 use axum::{routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,7 @@ use api::AppState;
 use db::Database;
 
 pub use error::{AppError, AppResult};
+pub use ws::ConnectionManager;
 
 #[derive(Serialize, Deserialize)]
 pub struct HealthResponse {
@@ -33,6 +35,7 @@ pub fn create_app(state: AppState) -> Router {
         .route("/api/health", get(health_check))
         .nest("/api", api::repos::router())
         .nest("/api", api::sessions::router())
+        .nest("/api", ws::router())
         .with_state(state)
         .layer(cors)
 }
