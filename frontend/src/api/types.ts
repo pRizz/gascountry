@@ -38,6 +38,20 @@ export interface CloneRepoResponse {
   message: string;
 }
 
+export interface CloneProgress {
+  received_objects: number;
+  total_objects: number;
+  received_bytes: number;
+  indexed_objects: number;
+  total_deltas: number;
+  indexed_deltas: number;
+}
+
+export type CloneProgressEvent =
+  | { type: "progress"; data: CloneProgress }
+  | { type: "complete"; data: { repo: Repo; message: string } }
+  | { type: "error"; data: { message: string } };
+
 // --- Sessions ---
 
 export type SessionStatus = "idle" | "running" | "completed" | "error" | "cancelled";
