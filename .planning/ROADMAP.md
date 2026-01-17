@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Clone Progress** - Real-time progress UI during clone operations
 - [x] **Phase 4: Error Handling** - Helpful error messages for common failure scenarios
 - [x] **Phase 5: Authentication** - Credential prompts for auth failures
-- [ ] **Phase 6: Repository Manager** - CRUD interface for viewing, cloning, and deleting repos
+- [x] **Phase 6: Repository Manager** - CRUD interface for viewing, cloning, and deleting repos
 - [ ] **Phase 7: Agent Orchestrator Selection** - Per-session orchestrator selection (Ralph, GSD, Gastown)
 
 ## Phase Details
@@ -107,7 +107,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 06-01-PLAN.md — RepositoryManagerDialog component with table, delete confirmation, and clone integration
+- [x] 06-01-PLAN.md — RepositoryManagerDialog component with table, delete confirmation, and clone integration
 
 ### Phase 7: Agent Orchestrator Selection
 **Goal**: Users can select different agent orchestrators per session with future options visible
@@ -137,7 +137,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 3. Clone Progress | 2/2 | Complete | 2026-01-17 |
 | 4. Error Handling | 2/2 | Complete | 2026-01-17 |
 | 5. Authentication | 2/2 | Complete | 2026-01-17 |
-| 6. Repository Manager | 0/1 | Planned | — |
+| 6. Repository Manager | 1/1 | Complete | 2026-01-17 |
 | 7. Agent Orchestrator Selection | 0/2 | Planned | — |
 
 ---
