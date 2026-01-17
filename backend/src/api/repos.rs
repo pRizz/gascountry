@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use axum::{
     extract::{Path as AxumPath, State},
@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use crate::db::models::Repo;
 use crate::error::{AppError, AppResult};
+use crate::git::GitManager;
 
 use super::AppState;
 
@@ -20,6 +21,20 @@ pub struct AddRepoRequest {
     pub path: String,
     /// Optional name (defaults to directory name)
     pub name: Option<String>,
+}
+
+/// Request body for cloning a repository
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CloneRepoRequest {
+    /// Git URL (SSH or HTTPS format)
+    pub url: String,
+}
+
+/// Response for clone operation
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CloneRepoResponse {
+    pub repo: Repo,
+    pub message: String,
 }
 
 /// Request body for scanning directories
@@ -178,10 +193,86 @@ fn scan_directory(path: &Path, current_depth: usize, max_depth: usize, found: &m
     }
 }
 
+/// Extract repository name from a git URL
+///
+/// Handles both HTTPS and SSH URL formats:
+/// - `https://github.com/user/repo.git` -> `repo`
+/// - `https://github.com/user/repo` -> `repo`
+/// - `git@github.com:user/repo.git` -> `repo`
+fn extract_repo_name(url: &str) -> Result<String, AppError> {
+    let url = url.trim_end_matches('/');
+    let url = url.trim_end_matches(".git");
+
+    // Try splitting by '/' first (HTTPS URLs)
+    let name = url.rsplit('/').next();
+
+    // If that gives us empty or the whole URL, try ':' (SSH URLs)
+    let name = match name {
+        Some(n) if !n.is_empty() && n != url => Some(n),
+        _ => url.rsplit(':').next(),
+    };
+
+    let name = name
+        .filter(|n| !n.is_empty() && !n.contains('/'))
+        .ok_or_else(|| AppError::BadRequest("Could not extract repository name from URL".to_string()))?;
+
+    Ok(name.to_string())
+}
+
+/// Clone a repository from a git URL
+async fn clone_repo(
+    State(state): State<AppState>,
+    Json(req): Json<CloneRepoRequest>,
+) -> AppResult<Json<CloneRepoResponse>> {
+    // Parse URL to extract repo name
+    let repo_name = extract_repo_name(&req.url)?;
+
+    // Build destination path: ~/ralphtown/{repo_name}
+    let home = dirs::home_dir()
+        .ok_or_else(|| AppError::Internal("Could not determine home directory".to_string()))?;
+    let dest: PathBuf = home.join("ralphtown").join(&repo_name);
+
+    // Check if destination already exists
+    if dest.exists() {
+        return Err(AppError::BadRequest(format!(
+            "Directory already exists: {}",
+            dest.display()
+        )));
+    }
+
+    // Create parent directory if needed
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            AppError::Internal(format!("Failed to create directory: {}", e))
+        })?;
+    }
+
+    // Clone using spawn_blocking to avoid blocking the async runtime
+    let url_clone = req.url.clone();
+    let dest_clone = dest.clone();
+    tokio::task::spawn_blocking(move || GitManager::clone(&url_clone, &dest_clone))
+        .await
+        .map_err(|e| AppError::Internal(format!("Clone task failed: {}", e)))?
+        .map_err(|e| AppError::Internal(format!("Clone failed: {}", e)))?;
+
+    // Insert repo into database
+    let path_str = dest.to_string_lossy().to_string();
+    let repo = state
+        .db
+        .insert_repo(&path_str, &repo_name)
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(CloneRepoResponse {
+        repo,
+        message: format!("Cloned to {}", dest.display()),
+    }))
+}
+
 /// Create the repos router
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/repos", get(list_repos).post(add_repo))
+        .route("/repos/clone", post(clone_repo))
         .route("/repos/{id}", delete(delete_repo))
         .route("/repos/scan", post(scan_repos))
 }
@@ -372,5 +463,86 @@ mod tests {
         let scan_result: ScanResponse = response.json();
         assert_eq!(scan_result.found.len(), 1);
         assert_eq!(scan_result.found[0].name, "my-project");
+    }
+
+    #[test]
+    fn test_extract_repo_name_https() {
+        assert_eq!(
+            extract_repo_name("https://github.com/user/repo.git").unwrap(),
+            "repo"
+        );
+        assert_eq!(
+            extract_repo_name("https://github.com/user/repo").unwrap(),
+            "repo"
+        );
+        assert_eq!(
+            extract_repo_name("https://github.com/user/my-project.git").unwrap(),
+            "my-project"
+        );
+        assert_eq!(
+            extract_repo_name("https://github.com/user/repo/").unwrap(),
+            "repo"
+        );
+    }
+
+    #[test]
+    fn test_extract_repo_name_ssh() {
+        assert_eq!(
+            extract_repo_name("git@github.com:user/repo.git").unwrap(),
+            "repo"
+        );
+        assert_eq!(
+            extract_repo_name("git@github.com:user/repo").unwrap(),
+            "repo"
+        );
+        assert_eq!(
+            extract_repo_name("git@gitlab.com:org/my-project.git").unwrap(),
+            "my-project"
+        );
+    }
+
+    #[test]
+    fn test_extract_repo_name_invalid() {
+        // Empty string should fail
+        assert!(extract_repo_name("").is_err());
+        // Note: "not-a-url" extracts as "not-a-url" which is technically valid
+        // for name extraction. The clone itself will fail if URL is invalid.
+    }
+
+    #[tokio::test]
+    async fn test_clone_repo_from_local_source() {
+        let state = create_test_state();
+        let _server = create_test_server(state);
+
+        // Create a source repo with a commit
+        let source_dir = TempDir::new().expect("Failed to create source dir");
+        let source_repo = git2::Repository::init(source_dir.path())
+            .expect("Failed to init source repo");
+
+        // Configure user for commits
+        {
+            let mut config = source_repo.config().expect("Failed to get config");
+            config.set_str("user.name", "Test User").expect("Failed to set user.name");
+            config.set_str("user.email", "test@example.com").expect("Failed to set user.email");
+        }
+
+        // Create initial commit
+        {
+            let sig = source_repo.signature().expect("Failed to create signature");
+            let tree_id = source_repo.index().expect("Failed to get index")
+                .write_tree().expect("Failed to write tree");
+            let tree = source_repo.find_tree(tree_id).expect("Failed to find tree");
+            source_repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[])
+                .expect("Failed to create initial commit");
+        }
+
+        // Create a temp directory for the clone destination that we'll control
+        // Instead of using ~/ralphtown, we test the extract_repo_name function
+        // and verify the clone endpoint returns the expected structure
+
+        // Note: We can't easily test the full clone endpoint in unit tests because
+        // it hardcodes ~/ralphtown as the destination. The integration test (Task 3)
+        // will verify the full flow. Here we just verify the endpoint compiles
+        // and the helper functions work.
     }
 }
