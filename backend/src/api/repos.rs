@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::db::models::Repo;
 use crate::error::{AppError, AppResult};
-use crate::git::{CloneProgress, GitManager};
+use crate::git::{CloneCredentials, CloneProgress, GitManager};
 
 use super::AppState;
 
@@ -49,6 +49,57 @@ pub struct CloneProgressQuery {
     pub url: String,
 }
 
+/// Request body for clone with credentials (POST)
+#[derive(Debug, Deserialize, Default)]
+pub struct CloneWithCredentialsRequest {
+    pub url: String,
+    #[serde(default)]
+    pub credentials: Option<ApiCredentials>,
+}
+
+/// API credential types matching frontend needs
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ApiCredentials {
+    /// SSH passphrase for encrypted keys
+    SshPassphrase {
+        passphrase: String,
+        #[serde(default)]
+        key_path: Option<String>,
+    },
+    /// GitHub Personal Access Token
+    GitHubPat {
+        token: String,
+    },
+    /// HTTPS basic authentication
+    HttpsBasic {
+        username: String,
+        password: String,
+    },
+}
+
+impl From<ApiCredentials> for CloneCredentials {
+    fn from(api: ApiCredentials) -> Self {
+        match api {
+            ApiCredentials::SshPassphrase { passphrase, key_path } => CloneCredentials {
+                ssh_passphrase: Some(passphrase),
+                ssh_key_path: key_path.map(PathBuf::from),
+                ..Default::default()
+            },
+            ApiCredentials::GitHubPat { token } => CloneCredentials {
+                username: Some("x-access-token".to_string()), // GitHub PAT convention
+                password: Some(token),
+                ..Default::default()
+            },
+            ApiCredentials::HttpsBasic { username, password } => CloneCredentials {
+                username: Some(username),
+                password: Some(password),
+                ..Default::default()
+            },
+        }
+    }
+}
+
 /// SSE event types for clone progress
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -62,6 +113,12 @@ pub enum CloneEvent {
         message: String,
         #[serde(skip_serializing_if = "Vec::is_empty", default)]
         help_steps: Vec<String>,
+        /// Auth type hint for retry UI: "ssh", "github_pat", "https_basic"
+        #[serde(skip_serializing_if = "Option::is_none")]
+        auth_type: Option<String>,
+        /// Whether frontend can retry with credentials
+        #[serde(skip_serializing_if = "std::ops::Not::not", default)]
+        can_retry_with_credentials: bool,
     },
 }
 
@@ -292,7 +349,12 @@ type SseResponse = Sse<axum::response::sse::KeepAliveStream<SseStream>>;
 /// Create an error SSE response
 fn error_sse(message: String, help_steps: Vec<String>) -> SseResponse {
     let stream = async_stream::stream! {
-        let event = CloneEvent::Error { message, help_steps };
+        let event = CloneEvent::Error {
+            message,
+            help_steps,
+            auth_type: None,
+            can_retry_with_credentials: false,
+        };
         let data = serde_json::to_string(&event).unwrap_or_default();
         yield Ok(Event::default().event("error").data(data));
     };
@@ -386,6 +448,8 @@ async fn clone_with_progress_sse(
                         let event = CloneEvent::Error {
                             message: format!("Failed to save repo to database: {}", e),
                             help_steps: Vec::new(),
+                            auth_type: None,
+                            can_retry_with_credentials: false,
                         };
                         let data = serde_json::to_string(&event).unwrap_or_default();
                         yield Ok(Event::default().event("error").data(data));
@@ -393,22 +457,28 @@ async fn clone_with_progress_sse(
                 }
             }
             Ok(Err(clone_error)) => {
-                // Extract help_steps from CloneError variants
-                let (message, help_steps) = match &clone_error {
+                // Extract help_steps and auth hints from CloneError variants
+                let (message, help_steps, auth_type, can_retry) = match &clone_error {
                     crate::git::CloneError::SshAuthFailed { message, help_steps, .. } => {
-                        (message.clone(), help_steps.clone())
+                        (message.clone(), help_steps.clone(), Some("ssh".to_string()), true)
                     }
-                    crate::git::CloneError::HttpsAuthFailed { message, help_steps, .. } => {
-                        (message.clone(), help_steps.clone())
+                    crate::git::CloneError::HttpsAuthFailed { message, help_steps, is_github } => {
+                        let auth = if *is_github { "github_pat" } else { "https_basic" };
+                        (message.clone(), help_steps.clone(), Some(auth.to_string()), true)
                     }
                     crate::git::CloneError::NetworkError { message } => {
-                        (format!("Network error: {}", message), Vec::new())
+                        (format!("Network error: {}", message), Vec::new(), None, false)
                     }
                     crate::git::CloneError::OperationFailed { message } => {
-                        (format!("Clone failed: {}", message), Vec::new())
+                        (format!("Clone failed: {}", message), Vec::new(), None, false)
                     }
                 };
-                let event = CloneEvent::Error { message, help_steps };
+                let event = CloneEvent::Error {
+                    message,
+                    help_steps,
+                    auth_type,
+                    can_retry_with_credentials: can_retry,
+                };
                 let data = serde_json::to_string(&event).unwrap_or_default();
                 yield Ok(Event::default().event("error").data(data));
             }
@@ -416,6 +486,147 @@ async fn clone_with_progress_sse(
                 let event = CloneEvent::Error {
                     message: format!("Clone task panicked: {}", e),
                     help_steps: Vec::new(),
+                    auth_type: None,
+                    can_retry_with_credentials: false,
+                };
+                let data = serde_json::to_string(&event).unwrap_or_default();
+                yield Ok(Event::default().event("error").data(data));
+            }
+        }
+    };
+
+    Sse::new(Box::pin(stream) as SseStream).keep_alive(KeepAlive::default())
+}
+
+/// Clone a repository with credentials via POST SSE
+///
+/// This endpoint accepts credentials in the request body for authenticated clones.
+/// Use this for retry after auth failure, providing the required credentials.
+async fn clone_with_credentials_sse(
+    State(state): State<AppState>,
+    Json(req): Json<CloneWithCredentialsRequest>,
+) -> SseResponse {
+    // Parse URL to extract repo name
+    let repo_name = match extract_repo_name(&req.url) {
+        Ok(name) => name,
+        Err(e) => {
+            return error_sse(e.to_string(), Vec::new());
+        }
+    };
+
+    // Build destination path: ~/ralphtown/{repo_name}
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => {
+            return error_sse("Could not determine home directory".to_string(), Vec::new());
+        }
+    };
+    let dest: PathBuf = home.join("ralphtown").join(&repo_name);
+
+    // Check if destination already exists
+    if dest.exists() {
+        return error_sse(format!("Directory already exists: {}", dest.display()), Vec::new());
+    }
+
+    // Create parent directory if needed
+    if let Some(parent) = dest.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            return error_sse(format!("Failed to create directory: {}", e), Vec::new());
+        }
+    }
+
+    // Convert API credentials to CloneCredentials
+    let credentials = req.credentials.map(CloneCredentials::from);
+
+    // Create bounded channel for progress updates
+    let (progress_tx, mut progress_rx) = mpsc::channel::<CloneProgress>(32);
+
+    // Spawn the blocking clone operation with credentials
+    let url_clone = req.url.clone();
+    let dest_clone = dest.clone();
+    let clone_handle = tokio::task::spawn_blocking(move || {
+        GitManager::clone_with_credentials(&url_clone, &dest_clone, credentials, progress_tx)
+    });
+
+    // Create the SSE stream
+    let stream = async_stream::stream! {
+        // Stream progress updates while clone is running
+        loop {
+            tokio::select! {
+                progress = progress_rx.recv() => {
+                    match progress {
+                        Some(p) => {
+                            let event = CloneEvent::Progress(p);
+                            let data = serde_json::to_string(&event).unwrap_or_default();
+                            yield Ok(Event::default().data(data));
+                        }
+                        None => {
+                            // Channel closed, clone is complete or errored
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Wait for clone to complete and send final event
+        match clone_handle.await {
+            Ok(Ok(_)) => {
+                // Clone succeeded, insert repo into database
+                let path_str = dest.to_string_lossy().to_string();
+                match state.db.insert_repo(&path_str, &repo_name) {
+                    Ok(repo) => {
+                        let event = CloneEvent::Complete {
+                            repo,
+                            message: format!("Cloned to {}", dest.display()),
+                        };
+                        let data = serde_json::to_string(&event).unwrap_or_default();
+                        yield Ok(Event::default().event("complete").data(data));
+                    }
+                    Err(e) => {
+                        let event = CloneEvent::Error {
+                            message: format!("Failed to save repo to database: {}", e),
+                            help_steps: Vec::new(),
+                            auth_type: None,
+                            can_retry_with_credentials: false,
+                        };
+                        let data = serde_json::to_string(&event).unwrap_or_default();
+                        yield Ok(Event::default().event("error").data(data));
+                    }
+                }
+            }
+            Ok(Err(clone_error)) => {
+                // Extract help_steps and auth hints from CloneError variants
+                let (message, help_steps, auth_type, can_retry) = match &clone_error {
+                    crate::git::CloneError::SshAuthFailed { message, help_steps, .. } => {
+                        (message.clone(), help_steps.clone(), Some("ssh".to_string()), true)
+                    }
+                    crate::git::CloneError::HttpsAuthFailed { message, help_steps, is_github } => {
+                        let auth = if *is_github { "github_pat" } else { "https_basic" };
+                        (message.clone(), help_steps.clone(), Some(auth.to_string()), true)
+                    }
+                    crate::git::CloneError::NetworkError { message } => {
+                        (format!("Network error: {}", message), Vec::new(), None, false)
+                    }
+                    crate::git::CloneError::OperationFailed { message } => {
+                        (format!("Clone failed: {}", message), Vec::new(), None, false)
+                    }
+                };
+                let event = CloneEvent::Error {
+                    message,
+                    help_steps,
+                    auth_type,
+                    can_retry_with_credentials: can_retry,
+                };
+                let data = serde_json::to_string(&event).unwrap_or_default();
+                yield Ok(Event::default().event("error").data(data));
+            }
+            Err(e) => {
+                let event = CloneEvent::Error {
+                    message: format!("Clone task panicked: {}", e),
+                    help_steps: Vec::new(),
+                    auth_type: None,
+                    can_retry_with_credentials: false,
                 };
                 let data = serde_json::to_string(&event).unwrap_or_default();
                 yield Ok(Event::default().event("error").data(data));
@@ -431,7 +642,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/repos", get(list_repos).post(add_repo))
         .route("/repos/clone", post(clone_repo))
-        .route("/repos/clone-progress", get(clone_with_progress_sse))
+        .route("/repos/clone-progress", get(clone_with_progress_sse).post(clone_with_credentials_sse))
         .route("/repos/{id}", delete(delete_repo))
         .route("/repos/scan", post(scan_repos))
 }
