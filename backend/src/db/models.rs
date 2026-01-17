@@ -46,12 +46,56 @@ impl SessionStatus {
     }
 }
 
+/// Orchestrator type for AI coding sessions
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Orchestrator {
+    Ralph,
+    Gsd,
+    Gastown,
+}
+
+impl Orchestrator {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Orchestrator::Ralph => "ralph",
+            Orchestrator::Gsd => "gsd",
+            Orchestrator::Gastown => "gastown",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "ralph" => Ok(Orchestrator::Ralph),
+            "gsd" => Ok(Orchestrator::Gsd),
+            "gastown" => Ok(Orchestrator::Gastown),
+            _ => Err(format!("invalid orchestrator: '{}'", s)),
+        }
+    }
+
+    /// Check if this orchestrator is currently available
+    pub fn is_available(&self) -> bool {
+        match self {
+            Orchestrator::Ralph => true,
+            Orchestrator::Gsd => false,
+            Orchestrator::Gastown => false,
+        }
+    }
+}
+
+impl Default for Orchestrator {
+    fn default() -> Self {
+        Orchestrator::Ralph
+    }
+}
+
 /// Session model representing a Ralph session
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
     pub id: Uuid,
     pub repo_id: Uuid,
     pub name: Option<String>,
+    pub orchestrator: Orchestrator,
     pub status: SessionStatus,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
