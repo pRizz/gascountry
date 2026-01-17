@@ -15,11 +15,11 @@
 
 ### Auth
 
-- [ ] **AUTH-01**: User is prompted for GitHub PAT when HTTPS clone fails auth
-- [ ] **AUTH-02**: User is prompted for username/password for non-GitHub HTTPS URLs
-- [ ] **AUTH-03**: User is prompted for SSH passphrase when SSH key is encrypted
-- [ ] **AUTH-04**: User sees explanation of where/how credentials are used
-- [ ] **AUTH-05**: User sees alternative instructions for CLI-based auth setup
+- [x] **AUTH-01**: User is prompted for GitHub PAT when HTTPS clone fails auth
+- [x] **AUTH-02**: User is prompted for username/password for non-GitHub HTTPS URLs
+- [x] **AUTH-03**: User is prompted for SSH passphrase when SSH key is encrypted
+- [x] **AUTH-04**: User sees explanation of where/how credentials are used
+- [x] **AUTH-05**: User sees alternative instructions for CLI-based auth setup
 
 ### Errors
 
@@ -63,11 +63,11 @@
 | CLONE-03 | Phase 3 | Complete |
 | CLONE-04 | Phase 2 | Complete |
 | CLONE-05 | Phase 2 | Complete |
-| AUTH-01 | Phase 5 | Pending |
-| AUTH-02 | Phase 5 | Pending |
-| AUTH-03 | Phase 5 | Pending |
-| AUTH-04 | Phase 5 | Pending |
-| AUTH-05 | Phase 5 | Pending |
+| AUTH-01 | Phase 5 | Complete |
+| AUTH-02 | Phase 5 | Complete |
+| AUTH-03 | Phase 5 | Complete |
+| AUTH-04 | Phase 5 | Complete |
+| AUTH-05 | Phase 5 | Complete |
 | ERR-01 | Phase 4 | Complete |
 | ERR-02 | Phase 4 | Complete |
 | ERR-03 | Phase 4 | Complete |
@@ -82,4 +82,4 @@
 
 ---
 *Requirements defined: 2026-01-17*
-*Last updated: 2026-01-17 after Phase 4 completion*
+*Last updated: 2026-01-17 after Phase 5 completion*

@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Core Clone** - Basic clone dialog with URL input and default destination
 - [x] **Phase 3: Clone Progress** - Real-time progress UI during clone operations
 - [x] **Phase 4: Error Handling** - Helpful error messages for common failure scenarios
-- [ ] **Phase 5: Authentication** - Credential prompts for auth failures
+- [x] **Phase 5: Authentication** - Credential prompts for auth failures
 
 ## Phase Details
 
@@ -90,8 +90,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Backend credential callback support (git2 credentials, POST endpoint)
-- [ ] 05-02-PLAN.md — Frontend credential inputs with trust messaging and CLI alternative
+- [x] 05-01-PLAN.md — Backend credential callback support (git2 credentials, POST endpoint)
+- [x] 05-02-PLAN.md — Frontend credential inputs with trust messaging and CLI alternative
 
 ## Progress
 
@@ -104,7 +104,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Core Clone | 2/2 | Complete | 2026-01-17 |
 | 3. Clone Progress | 2/2 | Complete | 2026-01-17 |
 | 4. Error Handling | 2/2 | Complete | 2026-01-17 |
-| 5. Authentication | 0/2 | Not started | - |
+| 5. Authentication | 2/2 | Complete | 2026-01-17 |
 
 ---
 *Roadmap created: 2026-01-17*
