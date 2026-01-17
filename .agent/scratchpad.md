@@ -11,8 +11,8 @@
 - [x] Step 5: Session management API
 - [x] Step 6: WebSocket infrastructure
 - [x] Step 7: Ralph process spawning
-- [ ] Step 8: Output streaming to WebSocket
-- [ ] Step 9: Interrupt/cancel functionality
+- [x] Step 8: Output streaming to WebSocket
+- [x] Step 9: Interrupt/cancel functionality
 - [ ] Step 10: Git operations
 - [ ] Step 11: Frontend API integration
 - [ ] Step 12: Frontend WebSocket integration
@@ -248,12 +248,66 @@ ralphtown/
 
 ---
 
-## Next: Step 8 - Output Streaming to WebSocket
+## Step 8 - COMPLETED
+
+### Changes Made
+- [x] Added `insert_output_log(session_id, stream, content)` to Database
+- [x] Added `list_output_logs(session_id, stream_filter, limit, offset)` to Database
+- [x] Added `delete_output_logs(session_id)` to Database
+- [x] Updated RalphManager stdout/stderr readers to persist output alongside WebSocket broadcast
+- [x] Added `GET /api/sessions/{id}/output` endpoint with query params:
+  - `?stream=stdout|stderr` - filter by stream type
+  - `?limit=N` - limit results
+  - `?offset=N` - pagination offset
+- [x] Added OutputQueryParams, OutputResponse DTOs
+- [x] Added 10 new tests (2 db tests + 3 api tests for output logs)
+
+### Files Modified
+- `backend/src/db/mod.rs` - Added output_logs CRUD operations + tests
+- `backend/src/ralph/mod.rs` - Added db persistence alongside broadcast
+- `backend/src/api/sessions.rs` - Added output endpoint + tests
+
+### Verification
+- Backend cargo test: ✅ PASS (37 tests)
+- Frontend tests: ✅ PASS (1 test)
+
+---
+
+## Step 9 - COMPLETED
+
+### Changes Made
+- [x] Reviewed existing cancel implementation in RalphManager - already has SIGTERM → wait 5s → SIGKILL
+- [x] WebSocket cancel handler already routes to RalphManager.cancel()
+- [x] Session status transitions to Cancelled implemented
+- [x] WebSocket status broadcast on cancel implemented
+- [x] Added `POST /api/sessions/{id}/cancel` REST endpoint for API parity
+- [x] Added 2 integration tests for cancel endpoint (nonexistent session, not running)
+
+### Files Modified
+- `backend/src/api/sessions.rs` - Added cancel_session endpoint, CancelSessionResponse struct, route, and tests
+
+### Verification
+- Backend cargo test: ✅ PASS (39 tests - 6 db + 1 health + 8 repo API + 9 session API + 4 ws connections + 3 ws messages + 3 ralph)
+- Frontend tests: ✅ PASS (1 test)
+
+---
+
+## Next: Step 10 - Git Operations
 
 Tasks:
-- [ ] Output already streams via broadcast channels (implemented in Step 7)
-- [ ] Store output in database (output_logs table) for history
-- [ ] Add endpoint to retrieve historical output: `GET /api/sessions/{id}/output`
+- [ ] Create `GitManager` struct for git operations
+- [ ] Implement read operations using git2 (status, log, branches, diff stats)
+- [ ] Implement write operations using CLI subprocess (pull, push, commit, reset, checkout)
+- [ ] Add REST endpoints:
+  - `GET /api/sessions/{id}/git/status`
+  - `GET /api/sessions/{id}/git/log?limit=20`
+  - `GET /api/sessions/{id}/git/branches`
+  - `POST /api/sessions/{id}/git/pull`
+  - `POST /api/sessions/{id}/git/push`
+  - `POST /api/sessions/{id}/git/commit`
+  - `POST /api/sessions/{id}/git/reset`
+  - `POST /api/sessions/{id}/git/checkout`
+- [ ] Add integration tests for git operations
 
 ---
 

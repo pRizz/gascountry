@@ -177,6 +177,44 @@ async fn run_session(
     }))
 }
 
+/// Cancel a running ralph session
+async fn cancel_session(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<Uuid>,
+) -> AppResult<Json<CancelSessionResponse>> {
+    // Verify session exists
+    state.db.get_session(id).map_err(|e| match e {
+        crate::db::DbError::NotFound => AppError::NotFound(format!("Session not found: {}", id)),
+        _ => AppError::Internal(e.to_string()),
+    })?;
+
+    // Cancel the ralph process
+    state
+        .ralph_manager
+        .cancel(id, state.db.clone(), state.connections.clone())
+        .await
+        .map_err(|e| match e {
+            RalphError::NotRunning(session_id) => {
+                AppError::BadRequest(format!("Session {} has no running process", session_id))
+            }
+            _ => AppError::Internal(e.to_string()),
+        })?;
+
+    Ok(Json(CancelSessionResponse {
+        session_id: id,
+        status: SessionStatus::Cancelled,
+        message: "Ralph process cancelled".to_string(),
+    }))
+}
+
+/// Response for cancel session endpoint
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CancelSessionResponse {
+    pub session_id: Uuid,
+    pub status: SessionStatus,
+    pub message: String,
+}
+
 /// Get session output logs (historical)
 async fn get_session_output(
     State(state): State<AppState>,
@@ -216,6 +254,7 @@ pub fn router() -> Router<AppState> {
         .route("/sessions", get(list_sessions).post(create_session))
         .route("/sessions/{id}", get(get_session).delete(delete_session))
         .route("/sessions/{id}/run", post(run_session))
+        .route("/sessions/{id}/cancel", post(cancel_session))
         .route("/sessions/{id}/output", get(get_session_output))
 }
 
@@ -523,5 +562,41 @@ mod tests {
         let fake_id = Uuid::new_v4();
         let response = server.get(&format!("/sessions/{}/output", fake_id)).await;
         response.assert_status_not_found();
+    }
+
+    #[tokio::test]
+    async fn test_cancel_nonexistent_session() {
+        let state = create_test_state();
+        let server = create_test_server(state);
+
+        let fake_id = Uuid::new_v4();
+        let response = server
+            .post(&format!("/sessions/{}/cancel", fake_id))
+            .await;
+        response.assert_status_not_found();
+    }
+
+    #[tokio::test]
+    async fn test_cancel_session_not_running() {
+        let state = create_test_state();
+        let server = create_test_server(state);
+
+        // Create a repo and session
+        let repo = create_test_repo(&server).await;
+        let response = server
+            .post("/sessions")
+            .json(&CreateSessionRequest {
+                repo_id: repo.id,
+                name: Some("Test Session".to_string()),
+            })
+            .await;
+        response.assert_status_ok();
+        let session: Session = response.json();
+
+        // Try to cancel (should fail - not running)
+        let response = server
+            .post(&format!("/sessions/{}/cancel", session.id))
+            .await;
+        response.assert_status_bad_request();
     }
 }
