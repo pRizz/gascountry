@@ -1,16 +1,21 @@
+use std::convert::Infallible;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 
 use axum::{
-    extract::{Path as AxumPath, State},
+    extract::{Path as AxumPath, Query, State},
+    response::sse::{Event, KeepAlive, Sse},
     routing::{delete, get, post},
     Json, Router,
 };
+use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::db::models::Repo;
 use crate::error::{AppError, AppResult};
-use crate::git::GitManager;
+use crate::git::{CloneProgress, GitManager};
 
 use super::AppState;
 
@@ -35,6 +40,25 @@ pub struct CloneRepoRequest {
 pub struct CloneRepoResponse {
     pub repo: Repo,
     pub message: String,
+}
+
+/// Query parameters for clone with progress SSE endpoint
+#[derive(Debug, Deserialize)]
+pub struct CloneProgressQuery {
+    /// Git URL to clone (required)
+    pub url: String,
+}
+
+/// SSE event types for clone progress
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CloneEvent {
+    /// Progress update during clone
+    Progress(CloneProgress),
+    /// Clone completed successfully
+    Complete { repo: Repo, message: String },
+    /// Clone failed with error
+    Error { message: String },
 }
 
 /// Request body for scanning directories
@@ -268,11 +292,140 @@ async fn clone_repo(
     }))
 }
 
+/// Type alias for the SSE stream used in clone progress
+type SseStream = Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>>;
+
+/// Type alias for the full SSE response with keep-alive
+type SseResponse = Sse<axum::response::sse::KeepAliveStream<SseStream>>;
+
+/// Create an error SSE response
+fn error_sse(message: String) -> SseResponse {
+    let stream = async_stream::stream! {
+        let event = CloneEvent::Error { message };
+        let data = serde_json::to_string(&event).unwrap_or_default();
+        yield Ok(Event::default().event("error").data(data));
+    };
+    Sse::new(Box::pin(stream) as SseStream).keep_alive(KeepAlive::default())
+}
+
+/// Clone a repository with SSE progress streaming
+///
+/// This endpoint streams clone progress events and a final complete/error event.
+/// Uses Server-Sent Events (SSE) for real-time progress feedback.
+async fn clone_with_progress_sse(
+    State(state): State<AppState>,
+    Query(query): Query<CloneProgressQuery>,
+) -> SseResponse {
+    // Parse URL to extract repo name
+    let repo_name = match extract_repo_name(&query.url) {
+        Ok(name) => name,
+        Err(e) => {
+            return error_sse(e.to_string());
+        }
+    };
+
+    // Build destination path: ~/ralphtown/{repo_name}
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => {
+            return error_sse("Could not determine home directory".to_string());
+        }
+    };
+    let dest: PathBuf = home.join("ralphtown").join(&repo_name);
+
+    // Check if destination already exists
+    if dest.exists() {
+        return error_sse(format!("Directory already exists: {}", dest.display()));
+    }
+
+    // Create parent directory if needed
+    if let Some(parent) = dest.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            return error_sse(format!("Failed to create directory: {}", e));
+        }
+    }
+
+    // Create bounded channel for progress updates
+    let (progress_tx, mut progress_rx) = mpsc::channel::<CloneProgress>(32);
+
+    // Spawn the blocking clone operation
+    let url_clone = query.url.clone();
+    let dest_clone = dest.clone();
+    let clone_handle = tokio::task::spawn_blocking(move || {
+        GitManager::clone_with_progress(&url_clone, &dest_clone, progress_tx)
+    });
+
+    // Create the SSE stream
+    let stream = async_stream::stream! {
+        // Stream progress updates while clone is running
+        loop {
+            tokio::select! {
+                // Check for progress updates
+                progress = progress_rx.recv() => {
+                    match progress {
+                        Some(p) => {
+                            let event = CloneEvent::Progress(p);
+                            let data = serde_json::to_string(&event).unwrap_or_default();
+                            yield Ok(Event::default().data(data));
+                        }
+                        None => {
+                            // Channel closed, clone is complete or errored
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Wait for clone to complete and send final event
+        match clone_handle.await {
+            Ok(Ok(_)) => {
+                // Clone succeeded, insert repo into database
+                let path_str = dest.to_string_lossy().to_string();
+                match state.db.insert_repo(&path_str, &repo_name) {
+                    Ok(repo) => {
+                        let event = CloneEvent::Complete {
+                            repo,
+                            message: format!("Cloned to {}", dest.display()),
+                        };
+                        let data = serde_json::to_string(&event).unwrap_or_default();
+                        yield Ok(Event::default().event("complete").data(data));
+                    }
+                    Err(e) => {
+                        let event = CloneEvent::Error {
+                            message: format!("Failed to save repo to database: {}", e),
+                        };
+                        let data = serde_json::to_string(&event).unwrap_or_default();
+                        yield Ok(Event::default().event("error").data(data));
+                    }
+                }
+            }
+            Ok(Err(e)) => {
+                let event = CloneEvent::Error {
+                    message: format!("Clone failed: {}", e),
+                };
+                let data = serde_json::to_string(&event).unwrap_or_default();
+                yield Ok(Event::default().event("error").data(data));
+            }
+            Err(e) => {
+                let event = CloneEvent::Error {
+                    message: format!("Clone task panicked: {}", e),
+                };
+                let data = serde_json::to_string(&event).unwrap_or_default();
+                yield Ok(Event::default().event("error").data(data));
+            }
+        }
+    };
+
+    Sse::new(Box::pin(stream) as SseStream).keep_alive(KeepAlive::default())
+}
+
 /// Create the repos router
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/repos", get(list_repos).post(add_repo))
         .route("/repos/clone", post(clone_repo))
+        .route("/repos/clone-progress", get(clone_with_progress_sse))
         .route("/repos/{id}", delete(delete_repo))
         .route("/repos/scan", post(scan_repos))
 }
