@@ -4,7 +4,7 @@ pub mod schema;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 use thiserror::Error;
 use uuid::Uuid;
@@ -29,9 +29,75 @@ pub enum DbError {
 
     #[error("Invalid data: {0}")]
     InvalidData(String),
+
+    #[error("Parse error: {message}")]
+    ParseError {
+        message: String,
+        value: String,
+        field: String,
+    },
+
+    #[error("Constraint violation: {0}")]
+    ConstraintViolation(String),
+
+    #[error("Connection error: {0}")]
+    ConnectionError(String),
 }
 
 pub type DbResult<T> = Result<T, DbError>;
+
+/// Parse a UUID from a database row with descriptive error
+fn parse_uuid(row: &rusqlite::Row, idx: usize, field: &str) -> rusqlite::Result<Uuid> {
+    let value: String = row.get(idx)?;
+    Uuid::parse_str(&value).map_err(|e| {
+        rusqlite::Error::FromSqlConversionFailure(
+            idx,
+            rusqlite::types::Type::Text,
+            Box::new(DbError::ParseError {
+                message: e.to_string(),
+                value,
+                field: field.to_string(),
+            }),
+        )
+    })
+}
+
+/// Parse a DateTime from a database row with descriptive error
+fn parse_datetime(row: &rusqlite::Row, idx: usize, field: &str) -> rusqlite::Result<DateTime<Utc>> {
+    let value: String = row.get(idx)?;
+    chrono::DateTime::parse_from_rfc3339(&value)
+        .map(|dt| dt.with_timezone(&Utc))
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                idx,
+                rusqlite::types::Type::Text,
+                Box::new(DbError::ParseError {
+                    message: e.to_string(),
+                    value,
+                    field: field.to_string(),
+                }),
+            )
+        })
+}
+
+/// Parse an enum from a database row with descriptive error
+fn parse_enum<T, F>(row: &rusqlite::Row, idx: usize, field: &str, parser: F) -> rusqlite::Result<T>
+where
+    F: FnOnce(&str) -> Result<T, String>,
+{
+    let value: String = row.get(idx)?;
+    parser(&value).map_err(|e| {
+        rusqlite::Error::FromSqlConversionFailure(
+            idx,
+            rusqlite::types::Type::Text,
+            Box::new(DbError::ParseError {
+                message: e,
+                value,
+                field: field.to_string(),
+            }),
+        )
+    })
+}
 
 /// Database wrapper with connection management
 #[derive(Clone)]
@@ -133,15 +199,11 @@ impl Database {
             params![id.to_string()],
             |row| {
                 Ok(Repo {
-                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                    id: parse_uuid(row, 0, "id")?,
                     path: row.get(1)?,
                     name: row.get(2)?,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
-                    updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    created_at: parse_datetime(row, 3, "created_at")?,
+                    updated_at: parse_datetime(row, 4, "updated_at")?,
                 })
             },
         )
@@ -160,15 +222,11 @@ impl Database {
             params![path],
             |row| {
                 Ok(Repo {
-                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                    id: parse_uuid(row, 0, "id")?,
                     path: row.get(1)?,
                     name: row.get(2)?,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
-                    updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    created_at: parse_datetime(row, 3, "created_at")?,
+                    updated_at: parse_datetime(row, 4, "updated_at")?,
                 })
             },
         )
@@ -187,15 +245,11 @@ impl Database {
         let repos = stmt
             .query_map([], |row| {
                 Ok(Repo {
-                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
+                    id: parse_uuid(row, 0, "id")?,
                     path: row.get(1)?,
                     name: row.get(2)?,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
-                    updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    created_at: parse_datetime(row, 3, "created_at")?,
+                    updated_at: parse_datetime(row, 4, "updated_at")?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -253,16 +307,12 @@ impl Database {
             params![id.to_string()],
             |row| {
                 Ok(Session {
-                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
-                    repo_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    id: parse_uuid(row, 0, "id")?,
+                    repo_id: parse_uuid(row, 1, "repo_id")?,
                     name: row.get(2)?,
-                    status: SessionStatus::from_str(&row.get::<_, String>(3)?).unwrap(),
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
-                    updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    status: parse_enum(row, 3, "status", SessionStatus::from_str)?,
+                    created_at: parse_datetime(row, 4, "created_at")?,
+                    updated_at: parse_datetime(row, 5, "updated_at")?,
                 })
             },
         )
@@ -282,16 +332,12 @@ impl Database {
         let sessions = stmt
             .query_map([], |row| {
                 Ok(Session {
-                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
-                    repo_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    id: parse_uuid(row, 0, "id")?,
+                    repo_id: parse_uuid(row, 1, "repo_id")?,
                     name: row.get(2)?,
-                    status: SessionStatus::from_str(&row.get::<_, String>(3)?).unwrap(),
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
-                    updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    status: parse_enum(row, 3, "status", SessionStatus::from_str)?,
+                    created_at: parse_datetime(row, 4, "created_at")?,
+                    updated_at: parse_datetime(row, 5, "updated_at")?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -309,16 +355,12 @@ impl Database {
         let sessions = stmt
             .query_map(params![repo_id.to_string()], |row| {
                 Ok(Session {
-                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
-                    repo_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    id: parse_uuid(row, 0, "id")?,
+                    repo_id: parse_uuid(row, 1, "repo_id")?,
                     name: row.get(2)?,
-                    status: SessionStatus::from_str(&row.get::<_, String>(3)?).unwrap(),
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
-                    updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    status: parse_enum(row, 3, "status", SessionStatus::from_str)?,
+                    created_at: parse_datetime(row, 4, "created_at")?,
+                    updated_at: parse_datetime(row, 5, "updated_at")?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -397,13 +439,11 @@ impl Database {
         let messages = stmt
             .query_map(params![session_id.to_string()], |row| {
                 Ok(Message {
-                    id: Uuid::parse_str(&row.get::<_, String>(0)?).unwrap(),
-                    session_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
-                    role: MessageRole::from_str(&row.get::<_, String>(2)?).unwrap(),
+                    id: parse_uuid(row, 0, "id")?,
+                    session_id: parse_uuid(row, 1, "session_id")?,
+                    role: parse_enum(row, 2, "role", MessageRole::from_str)?,
                     content: row.get(3)?,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    created_at: parse_datetime(row, 4, "created_at")?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -539,12 +579,10 @@ impl Database {
             stmt.query_map(params![session_id.to_string(), stream.as_str()], |row| {
                 Ok(OutputLog {
                     id: row.get(0)?,
-                    session_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
-                    stream: OutputStream::from_str(&row.get::<_, String>(2)?).unwrap(),
+                    session_id: parse_uuid(row, 1, "session_id")?,
+                    stream: parse_enum(row, 2, "stream", OutputStream::from_str)?,
                     content: row.get(3)?,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    created_at: parse_datetime(row, 4, "created_at")?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?
@@ -553,12 +591,10 @@ impl Database {
             stmt.query_map(params![session_id.to_string()], |row| {
                 Ok(OutputLog {
                     id: row.get(0)?,
-                    session_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
-                    stream: OutputStream::from_str(&row.get::<_, String>(2)?).unwrap(),
+                    session_id: parse_uuid(row, 1, "session_id")?,
+                    stream: parse_enum(row, 2, "stream", OutputStream::from_str)?,
                     content: row.get(3)?,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    created_at: parse_datetime(row, 4, "created_at")?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?

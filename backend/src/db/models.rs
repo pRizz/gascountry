@@ -34,14 +34,14 @@ impl SessionStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "idle" => Some(SessionStatus::Idle),
-            "running" => Some(SessionStatus::Running),
-            "completed" => Some(SessionStatus::Completed),
-            "error" => Some(SessionStatus::Error),
-            "cancelled" => Some(SessionStatus::Cancelled),
-            _ => None,
+            "idle" => Ok(SessionStatus::Idle),
+            "running" => Ok(SessionStatus::Running),
+            "completed" => Ok(SessionStatus::Completed),
+            "error" => Ok(SessionStatus::Error),
+            "cancelled" => Ok(SessionStatus::Cancelled),
+            _ => Err(format!("invalid session status: '{}'", s)),
         }
     }
 }
@@ -75,12 +75,12 @@ impl MessageRole {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "user" => Some(MessageRole::User),
-            "assistant" => Some(MessageRole::Assistant),
-            "system" => Some(MessageRole::System),
-            _ => None,
+            "user" => Ok(MessageRole::User),
+            "assistant" => Ok(MessageRole::Assistant),
+            "system" => Ok(MessageRole::System),
+            _ => Err(format!("invalid message role: '{}'", s)),
         }
     }
 }
@@ -111,11 +111,11 @@ impl OutputStream {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "stdout" => Some(OutputStream::Stdout),
-            "stderr" => Some(OutputStream::Stderr),
-            _ => None,
+            "stdout" => Ok(OutputStream::Stdout),
+            "stderr" => Ok(OutputStream::Stderr),
+            _ => Err(format!("invalid output stream: '{}'", s)),
         }
     }
 }
