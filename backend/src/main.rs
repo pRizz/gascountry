@@ -1,6 +1,7 @@
 pub mod api;
 pub mod db;
 mod error;
+pub mod git;
 pub mod ralph;
 pub mod ws;
 
@@ -37,6 +38,7 @@ pub fn create_app(state: AppState) -> Router {
         .route("/api/health", get(health_check))
         .nest("/api", api::repos::router())
         .nest("/api", api::sessions::router())
+        .nest("/api", api::git::router())
         .nest("/api", ws::router())
         .with_state(state)
         .layer(cors)

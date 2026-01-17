@@ -1,6 +1,6 @@
 # Ralphtown Implementation Scratchpad
 
-## Current Focus: Step 2 Complete - Moving to Step 3
+## Current Focus: Step 10 Complete - Moving to Step 11
 
 ### Progress Checklist (from plan.md)
 - [x] Step 0: Rename project from Gascountry to Ralphtown
@@ -13,7 +13,7 @@
 - [x] Step 7: Ralph process spawning
 - [x] Step 8: Output streaming to WebSocket
 - [x] Step 9: Interrupt/cancel functionality
-- [ ] Step 10: Git operations
+- [x] Step 10: Git operations
 - [ ] Step 11: Frontend API integration
 - [ ] Step 12: Frontend WebSocket integration
 - [ ] Step 13: Configuration management
@@ -292,22 +292,58 @@ ralphtown/
 
 ---
 
-## Next: Step 10 - Git Operations
+## Step 10 - COMPLETED
 
-Tasks:
-- [ ] Create `GitManager` struct for git operations
-- [ ] Implement read operations using git2 (status, log, branches, diff stats)
-- [ ] Implement write operations using CLI subprocess (pull, push, commit, reset, checkout)
-- [ ] Add REST endpoints:
+### Changes Made
+- [x] Created `backend/src/git/mod.rs` - GitManager struct for git operations
+- [x] Implemented read operations using git2:
+  - `status()` - Get repo status (branch, ahead/behind, staged, unstaged, untracked)
+  - `log()` - Get commit history with limit
+  - `branches()` - List local and remote branches
+  - `diff_stats()` - Get file changes with added/removed line counts
+- [x] Implemented write operations using CLI subprocess:
+  - `pull()` - Execute git pull
+  - `push()` - Execute git push
+  - `commit()` - Execute git commit with message
+  - `reset_hard()` - Execute git reset --hard
+  - `checkout()` - Switch to branch
+  - `add_all()` - Stage all changes
+- [x] Created `backend/src/api/git.rs` - REST endpoints for git operations:
   - `GET /api/sessions/{id}/git/status`
   - `GET /api/sessions/{id}/git/log?limit=20`
   - `GET /api/sessions/{id}/git/branches`
+  - `GET /api/sessions/{id}/git/diff`
   - `POST /api/sessions/{id}/git/pull`
   - `POST /api/sessions/{id}/git/push`
   - `POST /api/sessions/{id}/git/commit`
-  - `POST /api/sessions/{id}/git/reset`
+  - `POST /api/sessions/{id}/git/reset` (requires confirm: true)
   - `POST /api/sessions/{id}/git/checkout`
-- [ ] Add integration tests for git operations
+- [x] Added git module export to main.rs
+- [x] Added git router to api/mod.rs
+- [x] Added 19 new tests (10 git unit tests + 9 API integration tests)
+
+### Files Added/Modified
+- `backend/src/git/mod.rs` (new) - GitManager with read/write operations + tests
+- `backend/src/api/git.rs` (new) - Git REST endpoints + tests
+- `backend/src/api/mod.rs` - Added git module export
+- `backend/src/main.rs` - Added git module and router
+
+### Verification
+- Backend cargo test: ✅ PASS (58 tests)
+- Frontend tests: ✅ PASS (1 test)
+
+---
+
+## Next: Step 11 - Frontend API Integration
+
+Tasks:
+- [ ] Create API client module with fetch wrappers
+- [ ] Set up React Query for data fetching and caching
+- [ ] Replace mock data in Index.tsx with real API calls
+- [ ] Update RepoSelector to fetch from `/api/repos`
+- [ ] Update session creation to POST to `/api/sessions`
+- [ ] Add git command buttons that call git endpoints
+- [ ] Handle loading and error states
 
 ---
 
