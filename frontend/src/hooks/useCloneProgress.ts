@@ -60,8 +60,12 @@ export function useCloneProgress(
         }
       };
 
+      // Track if we received a final event (complete or error) to avoid spurious error handling
+      let receivedFinalEvent = false;
+
       // Handle complete event
       eventSource.addEventListener("complete", async (event) => {
+        receivedFinalEvent = true;
         try {
           const messageEvent = event as MessageEvent;
           const data = JSON.parse(messageEvent.data) as {
@@ -79,12 +83,9 @@ export function useCloneProgress(
         }
       });
 
-      // Track if we received a server error to avoid duplicate error handling
-      let receivedServerError = false;
-
       // Handle clone_error event (custom event from server with error details)
       eventSource.addEventListener("clone_error", (event) => {
-        receivedServerError = true;
+        receivedFinalEvent = true;
         const messageEvent = event as MessageEvent;
         try {
           const data = JSON.parse(messageEvent.data) as {
@@ -103,8 +104,8 @@ export function useCloneProgress(
 
       // Handle connection-level errors (browser's built-in error event)
       eventSource.addEventListener("error", () => {
-        // Only report connection error if we didn't already receive a server error
-        if (!receivedServerError) {
+        // Only report connection error if we didn't already receive a final event
+        if (!receivedFinalEvent) {
           onErrorRef.current("Connection to the server was lost");
         }
         eventSource.close();
