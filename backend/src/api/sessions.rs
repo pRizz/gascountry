@@ -6,7 +6,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::db::models::{Message, OutputStream, OutputLog, Session, SessionStatus};
+use crate::db::models::{Message, Orchestrator, OutputStream, OutputLog, Session, SessionStatus};
 use crate::error::{AppError, AppResult};
 use crate::ralph::RalphError;
 
@@ -19,6 +19,9 @@ pub struct CreateSessionRequest {
     pub repo_id: Uuid,
     /// Optional session name
     pub name: Option<String>,
+    /// Orchestrator to use for this session (defaults to ralph)
+    #[serde(default)]
+    pub orchestrator: Orchestrator,
 }
 
 /// Response for session details including messages
@@ -78,6 +81,14 @@ async fn create_session(
     State(state): State<AppState>,
     Json(req): Json<CreateSessionRequest>,
 ) -> AppResult<Json<Session>> {
+    // Validate orchestrator is available
+    if !req.orchestrator.is_available() {
+        return Err(AppError::BadRequest(format!(
+            "Orchestrator '{}' is not yet available",
+            req.orchestrator.as_str()
+        )));
+    }
+
     // Verify repo exists
     state.db.get_repo(req.repo_id).map_err(|e| match e {
         crate::db::DbError::NotFound => {
@@ -88,7 +99,7 @@ async fn create_session(
 
     let session = state
         .db
-        .insert_session(req.repo_id, req.name.as_deref())
+        .insert_session(req.repo_id, req.name.as_deref(), req.orchestrator)
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(Json(session))
@@ -329,6 +340,7 @@ mod tests {
             .json(&CreateSessionRequest {
                 repo_id: fake_repo_id,
                 name: None,
+                orchestrator: Orchestrator::Ralph,
             })
             .await;
 
@@ -349,6 +361,7 @@ mod tests {
             .json(&CreateSessionRequest {
                 repo_id: repo.id,
                 name: Some("Test Session".to_string()),
+                orchestrator: Orchestrator::Ralph,
             })
             .await;
 
@@ -356,6 +369,7 @@ mod tests {
         let session: Session = response.json();
         assert_eq!(session.repo_id, repo.id);
         assert_eq!(session.name, Some("Test Session".to_string()));
+        assert_eq!(session.orchestrator, Orchestrator::Ralph);
         assert_eq!(session.status, crate::db::models::SessionStatus::Idle);
 
         // List sessions
@@ -364,6 +378,7 @@ mod tests {
         let sessions: Vec<Session> = response.json();
         assert_eq!(sessions.len(), 1);
         assert_eq!(sessions[0].name, Some("Test Session".to_string()));
+        assert_eq!(sessions[0].orchestrator, Orchestrator::Ralph);
     }
 
     #[tokio::test]
@@ -378,6 +393,7 @@ mod tests {
             .json(&CreateSessionRequest {
                 repo_id: repo.id,
                 name: None,
+                orchestrator: Orchestrator::Ralph,
             })
             .await;
         response.assert_status_ok();
@@ -433,6 +449,7 @@ mod tests {
             .json(&CreateSessionRequest {
                 repo_id: repo.id,
                 name: Some("To Delete".to_string()),
+                orchestrator: Orchestrator::Ralph,
             })
             .await;
         response.assert_status_ok();
@@ -469,6 +486,7 @@ mod tests {
             .json(&CreateSessionRequest {
                 repo_id: repo.id,
                 name: None,
+                orchestrator: Orchestrator::Ralph,
             })
             .await;
         response.assert_status_ok();
@@ -497,6 +515,7 @@ mod tests {
             .json(&CreateSessionRequest {
                 repo_id: repo.id,
                 name: None,
+                orchestrator: Orchestrator::Ralph,
             })
             .await;
         response.assert_status_ok();
@@ -594,6 +613,7 @@ mod tests {
             .json(&CreateSessionRequest {
                 repo_id: repo.id,
                 name: Some("Test Session".to_string()),
+                orchestrator: Orchestrator::Ralph,
             })
             .await;
         response.assert_status_ok();
@@ -603,6 +623,27 @@ mod tests {
         let response = server
             .post(&format!("/sessions/{}/cancel", session.id))
             .await;
+        response.assert_status_bad_request();
+    }
+
+    #[tokio::test]
+    async fn test_create_session_validates_orchestrator() {
+        let state = create_test_state();
+        let server = create_test_server(state);
+
+        // Create a repo first
+        let repo = create_test_repo(&server).await;
+
+        // Try to create session with unavailable orchestrator (gsd)
+        let response = server
+            .post("/sessions")
+            .json(&CreateSessionRequest {
+                repo_id: repo.id,
+                name: Some("Test Session".to_string()),
+                orchestrator: Orchestrator::Gsd,
+            })
+            .await;
+
         response.assert_status_bad_request();
     }
 }

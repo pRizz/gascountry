@@ -293,7 +293,7 @@ mod tests {
     use super::*;
     use crate::api::repos::{router as repos_router, AddRepoRequest};
     use crate::api::sessions::{router as sessions_router, CreateSessionRequest};
-    use crate::db::models::{Repo, Session};
+    use crate::db::models::{Orchestrator, Repo, Session};
     use crate::db::Database;
     use axum_test::TestServer;
     use std::fs;
@@ -353,6 +353,7 @@ mod tests {
             .json(&CreateSessionRequest {
                 repo_id: repo.id,
                 name: Some("Test Session".to_string()),
+                orchestrator: Orchestrator::Ralph,
             })
             .await;
         response.assert_status_ok();
