@@ -182,6 +182,45 @@ export interface CheckoutRequest {
   branch: string;
 }
 
+// --- Config ---
+
+export interface ConfigResponse {
+  config: Record<string, string>;
+}
+
+export interface UpdateConfigRequest {
+  config: Record<string, string>;
+}
+
+export interface ConfigValueResponse {
+  key: string;
+  value: string | null;
+}
+
+export interface SetConfigValueRequest {
+  value: string;
+}
+
+export interface AiBackend {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface BackendsResponse {
+  backends: AiBackend[];
+}
+
+export interface Preset {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface PresetsResponse {
+  presets: Preset[];
+}
+
 // --- WebSocket Messages ---
 
 // Client → Server messages

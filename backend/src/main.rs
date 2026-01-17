@@ -39,6 +39,7 @@ pub fn create_app(state: AppState) -> Router {
         .nest("/api", api::repos::router())
         .nest("/api", api::sessions::router())
         .nest("/api", api::git::router())
+        .nest("/api", api::config::router())
         .nest("/api", ws::router())
         .with_state(state)
         .layer(cors)

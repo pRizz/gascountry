@@ -9,6 +9,8 @@ import type {
   CommitRequest,
   ResetRequest,
   CheckoutRequest,
+  UpdateConfigRequest,
+  SetConfigValueRequest,
 } from "./types";
 
 // Query key factories for consistent cache management
@@ -21,6 +23,10 @@ export const queryKeys = {
   gitLog: (sessionId: string) => ["git", sessionId, "log"] as const,
   gitBranches: (sessionId: string) => ["git", sessionId, "branches"] as const,
   gitDiff: (sessionId: string) => ["git", sessionId, "diff"] as const,
+  config: ["config"] as const,
+  configValue: (key: string) => ["config", key] as const,
+  backends: ["config", "backends"] as const,
+  presets: ["config", "presets"] as const,
 };
 
 // --- Repos ---
@@ -221,5 +227,68 @@ export function useGitCheckout() {
       queryClient.invalidateQueries({ queryKey: queryKeys.gitStatus(sessionId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.gitBranches(sessionId) });
     },
+  });
+}
+
+// --- Config ---
+
+export function useConfig() {
+  return useQuery({
+    queryKey: queryKeys.config,
+    queryFn: api.getConfig,
+  });
+}
+
+export function useUpdateConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (req: UpdateConfigRequest) => api.updateConfig(req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
+    },
+  });
+}
+
+export function useConfigValue(key: string) {
+  return useQuery({
+    queryKey: queryKeys.configValue(key),
+    queryFn: () => api.getConfigValue(key),
+  });
+}
+
+export function useSetConfigValue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, req }: { key: string; req: SetConfigValueRequest }) =>
+      api.setConfigValue(key, req),
+    onSuccess: (_, { key }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
+      queryClient.invalidateQueries({ queryKey: queryKeys.configValue(key) });
+    },
+  });
+}
+
+export function useDeleteConfigValue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (key: string) => api.deleteConfigValue(key),
+    onSuccess: (_, key) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.config });
+      queryClient.invalidateQueries({ queryKey: queryKeys.configValue(key) });
+    },
+  });
+}
+
+export function useBackends() {
+  return useQuery({
+    queryKey: queryKeys.backends,
+    queryFn: api.listBackends,
+  });
+}
+
+export function usePresets() {
+  return useQuery({
+    queryKey: queryKeys.presets,
+    queryFn: api.listPresets,
   });
 }

@@ -448,6 +448,20 @@ impl Database {
         Ok(())
     }
 
+    /// List all config values
+    pub fn list_config(&self) -> DbResult<Vec<(String, String)>> {
+        let conn = self.conn.lock().unwrap();
+
+        let mut stmt = conn.prepare("SELECT key, value FROM config")?;
+        let config = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(config)
+    }
+
     // ==================== Output Log Operations ====================
 
     /// Insert a new output log entry

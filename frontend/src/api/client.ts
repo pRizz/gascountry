@@ -20,6 +20,12 @@ import type {
   CommitRequest,
   ResetRequest,
   CheckoutRequest,
+  ConfigResponse,
+  UpdateConfigRequest,
+  ConfigValueResponse,
+  SetConfigValueRequest,
+  BackendsResponse,
+  PresetsResponse,
 } from "./types";
 
 const API_BASE = "/api";
@@ -197,4 +203,43 @@ export async function gitCheckout(
     method: "POST",
     body: JSON.stringify(req),
   });
+}
+
+// --- Config ---
+
+export async function getConfig(): Promise<ConfigResponse> {
+  return request<ConfigResponse>("/config");
+}
+
+export async function updateConfig(req: UpdateConfigRequest): Promise<ConfigResponse> {
+  return request<ConfigResponse>("/config", {
+    method: "PUT",
+    body: JSON.stringify(req),
+  });
+}
+
+export async function getConfigValue(key: string): Promise<ConfigValueResponse> {
+  return request<ConfigValueResponse>(`/config/${encodeURIComponent(key)}`);
+}
+
+export async function setConfigValue(
+  key: string,
+  req: SetConfigValueRequest
+): Promise<ConfigValueResponse> {
+  return request<ConfigValueResponse>(`/config/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    body: JSON.stringify(req),
+  });
+}
+
+export async function deleteConfigValue(key: string): Promise<void> {
+  await request<void>(`/config/${encodeURIComponent(key)}`, { method: "DELETE" });
+}
+
+export async function listBackends(): Promise<BackendsResponse> {
+  return request<BackendsResponse>("/config/backends");
+}
+
+export async function listPresets(): Promise<PresetsResponse> {
+  return request<PresetsResponse>("/config/presets");
 }

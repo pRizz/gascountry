@@ -3,6 +3,7 @@ import { Search, SlidersHorizontal, SquarePen, Github, Globe } from "lucide-reac
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AgentListItem } from "./AgentListItem";
+import { SettingsDialog } from "./SettingsDialog";
 import { RalphtownInstance } from "@/types/ralphtown";
 
 interface AgentSidebarProps {
@@ -152,8 +153,8 @@ export function AgentSidebar({
         )}
       </div>
 
-      {/* Source Code Link */}
-      <div className="px-3 py-3 border-t border-sidebar-border mt-auto">
+      {/* Footer with Settings and Source Code Link */}
+      <div className="px-3 py-3 border-t border-sidebar-border mt-auto flex items-center justify-between">
         <a
           href="https://github.com/pRizz/ralphtown"
           target="_blank"
@@ -163,6 +164,7 @@ export function AgentSidebar({
           <Github className="h-4 w-4" />
           <span>ralphtown source code</span>
         </a>
+        <SettingsDialog />
       </div>
     </aside>
   );

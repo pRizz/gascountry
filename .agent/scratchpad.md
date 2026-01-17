@@ -1,6 +1,6 @@
 # Ralphtown Implementation Scratchpad
 
-## Current Focus: Step 12 Complete - Moving to Step 13
+## Current Focus: Step 13 Complete - Moving to Step 14
 
 ### Progress Checklist (from plan.md)
 - [x] Step 0: Rename project from Gascountry to Ralphtown
@@ -16,7 +16,7 @@
 - [x] Step 10: Git operations
 - [x] Step 11: Frontend API integration
 - [x] Step 12: Frontend WebSocket integration
-- [ ] Step 13: Configuration management
+- [x] Step 13: Configuration management
 - [ ] Step 14: Service installation
 - [ ] Step 15: Cargo install packaging
 - [ ] Step 16: Polish and integration testing
@@ -426,6 +426,67 @@ GET  /api/sessions/{id}/git/branches → GitBranchesResponse { branches[] }
 - Frontend build: ✅ PASS
 - Frontend tests: ✅ PASS (1 test)
 - Backend tests: ✅ PASS (58 tests)
+
+---
+
+## Step 13 - Configuration Management - COMPLETED
+
+### Tasks
+- [x] 13.1 Add `list_config()` method to Database for listing all config key-value pairs
+- [x] 13.2 Create `backend/src/api/config.rs` - Config REST endpoints
+  - `GET /api/config` - Get all config values
+  - `PUT /api/config` - Update multiple config values at once
+  - `GET /api/config/{key}` - Get single config value
+  - `PUT /api/config/{key}` - Set single config value
+  - `DELETE /api/config/{key}` - Delete config value
+  - `GET /api/config/presets` - List available presets
+  - `GET /api/config/backends` - List available AI backends
+- [x] 13.3 Add config module to api/mod.rs
+- [x] 13.4 Wire config router into main.rs
+- [x] 13.5 Add 8 integration tests for config endpoints
+- [x] 13.6 Create frontend config API types (`frontend/src/api/types.ts`)
+  - ConfigResponse, UpdateConfigRequest, ConfigValueResponse
+  - SetConfigValueRequest, AiBackend, Preset, BackendsResponse, PresetsResponse
+- [x] 13.7 Create frontend config API client functions (`frontend/src/api/client.ts`)
+  - getConfig, updateConfig, getConfigValue, setConfigValue
+  - deleteConfigValue, listBackends, listPresets
+- [x] 13.8 Create frontend React Query hooks (`frontend/src/api/hooks.ts`)
+  - useConfig, useUpdateConfig, useConfigValue, useSetConfigValue
+  - useDeleteConfigValue, useBackends, usePresets
+- [x] 13.9 Create `frontend/src/components/ralphtown/SettingsDialog.tsx`
+  - Dialog with form for AI backend, preset, max iterations, scan directories
+  - Uses useConfig, useBackends, usePresets hooks
+  - Saves via useUpdateConfig mutation
+- [x] 13.10 Integrate SettingsDialog into AgentSidebar footer
+
+### Files Added/Modified
+- `backend/src/db/mod.rs` - Added list_config() method
+- `backend/src/api/config.rs` (new) - Config REST endpoints + 8 tests
+- `backend/src/api/mod.rs` - Added config module export
+- `backend/src/main.rs` - Wired config router
+- `frontend/src/api/types.ts` - Added config types
+- `frontend/src/api/client.ts` - Added config client functions
+- `frontend/src/api/hooks.ts` - Added config React Query hooks
+- `frontend/src/components/ralphtown/SettingsDialog.tsx` (new) - Settings dialog component
+- `frontend/src/components/ralphtown/AgentSidebar.tsx` - Added SettingsDialog to footer
+
+### Available Presets
+- default: Standard autonomous mode
+- tdd-red-green: Test-driven development workflow
+- feature: Feature development with proper planning
+- debug: Investigate and fix bugs
+- refactor: Clean up and improve code structure
+- review: Code review and suggestions
+
+### Available AI Backends
+- claude: Anthropic's Claude models via API
+- bedrock: Claude models via AWS Bedrock
+- vertex: Claude models via Google Cloud Vertex AI
+
+### Verification
+- Backend cargo test: ✅ PASS (66 tests)
+- Frontend build: ✅ PASS
+- Frontend tests: ✅ PASS (1 test)
 
 ---
 
