@@ -7,7 +7,7 @@
 - [x] Step 1: Project restructure to monorepo
 - [x] Step 2: Backend scaffold with Axum
 - [x] Step 3: Database layer with SQLite
-- [ ] Step 4: Repository management API
+- [x] Step 4: Repository management API
 - [ ] Step 5: Session management API
 - [ ] Step 6: WebSocket infrastructure
 - [ ] Step 7: Ralph process spawning
@@ -134,17 +134,42 @@ ralphtown/
 
 ---
 
-## Next: Step 4 - Repository Management API
+## Step 4 - COMPLETED
+
+### Changes Made
+- [x] Added git2 v0.20 dependency to Cargo.toml
+- [x] Created `backend/src/api/mod.rs` - API module with AppState struct
+- [x] Created `backend/src/api/repos.rs` - Repository management endpoints
+- [x] Injected Database into Axum state via AppState wrapper
+- [x] `GET /api/repos` - List all repositories
+- [x] `POST /api/repos` - Add repo with git validation
+- [x] `DELETE /api/repos/{id}` - Remove repo by ID
+- [x] `POST /api/repos/scan` - Scan directories for git repos (recursive with depth limit)
+- [x] Canonicalize paths before storage for consistency
+- [x] Validate paths exist and are valid git repositories
+- [x] Added 8 integration tests for all endpoints
+
+### Files Added/Modified
+- `backend/Cargo.toml` - Added git2 dependency
+- `backend/src/api/mod.rs` (new) - AppState struct, module exports
+- `backend/src/api/repos.rs` (new) - Repository endpoints and tests
+- `backend/src/main.rs` - Added api module, create_app with state, create_test_app helper
+
+### Verification
+- Backend cargo test: ✅ PASS (15 tests - 7 db + 1 health + 7 repo API)
+- Frontend tests: ✅ PASS (1 test)
+
+---
+
+## Next: Step 5 - Session Management API
 
 Tasks:
-- [ ] Create `backend/src/api/mod.rs` - API module structure
-- [ ] Create `backend/src/api/repos.rs` - Repo endpoints
-- [ ] `GET /api/repos` - List all repos
-- [ ] `POST /api/repos` - Add repo (validate git repo)
-- [ ] `DELETE /api/repos/{id}` - Remove repo
-- [ ] `POST /api/repos/scan` - Scan directories for git repos
-- [ ] Add git2 dependency for repo validation
-- [ ] Inject Database into Axum state
+- [ ] Create `backend/src/api/sessions.rs` - Session endpoints
+- [ ] `POST /api/sessions` - Create session for a repo
+- [ ] `GET /api/sessions` - List all sessions
+- [ ] `GET /api/sessions/{id}` - Get session details with messages
+- [ ] `DELETE /api/sessions/{id}` - Delete session
+- [ ] Validate repo exists when creating session
 - [ ] Add integration tests
 
 ---

@@ -1,3 +1,4 @@
+pub mod api;
 pub mod db;
 mod error;
 
@@ -5,6 +6,9 @@ use axum::{routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use api::AppState;
+use db::Database;
 
 pub use error::{AppError, AppResult};
 
@@ -19,7 +23,7 @@ async fn health_check() -> Json<HealthResponse> {
     })
 }
 
-pub fn create_app() -> Router {
+pub fn create_app(state: AppState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
@@ -27,7 +31,16 @@ pub fn create_app() -> Router {
 
     Router::new()
         .route("/api/health", get(health_check))
+        .nest("/api", api::repos::router())
+        .with_state(state)
         .layer(cors)
+}
+
+/// Create app with in-memory database (for testing)
+pub fn create_test_app() -> Router {
+    let db = Database::in_memory().expect("Failed to create test database");
+    let state = AppState::new(db);
+    create_app(state)
 }
 
 #[tokio::main]
@@ -36,7 +49,14 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let app = create_app();
+    // Initialize database
+    let db_path = Database::default_path().expect("Failed to determine database path");
+    tracing::info!("Using database at: {:?}", db_path);
+
+    let db = Database::new(db_path).expect("Failed to initialize database");
+    let state = AppState::new(db);
+
+    let app = create_app(state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -54,7 +74,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_check_returns_200() {
-        let app = create_app();
+        let app = create_test_app();
         let server = TestServer::new(app).unwrap();
 
         let response = server.get("/api/health").await;
