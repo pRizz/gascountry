@@ -2,11 +2,22 @@
 
 ## What This Is
 
-A desktop UI for managing AI coding agents (ralph) across multiple git repositories. Users can run autonomous coding sessions, view real-time output, and manage multiple repos from a single local-first interface. Built with React/TypeScript frontend, Rust/Axum backend, WebSocket streaming, and SQLite persistence.
+A desktop UI for managing AI coding agents (ralph) across multiple git repositories. Users can run autonomous coding sessions, view real-time output, clone repositories with full authentication support, and manage multiple repos from a single local-first interface. Built with React/TypeScript frontend, Rust/Axum backend, WebSocket streaming, and SQLite persistence.
 
 ## Core Value
 
 Users can run autonomous AI coding sessions across multiple repositories from a single interface with real-time feedback.
+
+## Current State
+
+**Version:** v1.0 (shipped 2026-01-17)
+
+Ralphtown v1.0 delivers complete git clone functionality with authentication, progress streaming, helpful error messages, repository management, and orchestrator selection. Users can clone public and private repos, receive credential prompts on auth failures, manage their repository list, and select orchestrators for sessions.
+
+**Codebase:**
+- 14,256 LOC (Rust + TypeScript)
+- 7 phases, 12 plans executed
+- 23 files modified in milestone
 
 ## Requirements
 
@@ -20,20 +31,23 @@ Users can run autonomous AI coding sessions across multiple repositories from a 
 - ✓ Git operations (status, log, branches, diff, commit) — existing
 - ✓ Cross-platform system service installation — existing
 - ✓ Single binary distribution with embedded frontend — existing
+- ✓ Clone repos from git URL (SSH or HTTPS) — v1.0
+- ✓ Default clone location (~/ralphtown/) — v1.0
+- ✓ Clone progress UI with status feedback — v1.0
+- ✓ Auto-select cloned repo in selector — v1.0
+- ✓ Credential prompts for failed auth (GitHub PAT, username/password, SSH passphrase) — v1.0
+- ✓ Alternative auth instructions for users who prefer CLI setup — v1.0
+- ✓ Helpful error messages explaining auth failures and how to fix — v1.0
+- ✓ Delete unused mockData.ts (dead code cleanup) — v1.0
+- ✓ Validate repo path exists before session creation — v1.0
+- ✓ Helpful error when ralph CLI not found in PATH — v1.0
+- ✓ Replace .unwrap() with proper error handling in DB layer — v1.0
+- ✓ Repository manager with CRUD interface — v1.0
+- ✓ Per-session orchestrator selection (Ralph active, GSD/Gastown Coming Soon) — v1.0
 
 ### Active
 
-- [ ] Clone repos from git URL (SSH or HTTPS)
-- [ ] Default clone location (~/ralphtown/) with future settings escape hatch
-- [ ] Clone progress UI with status feedback
-- [ ] Auto-select cloned repo in selector
-- [ ] Credential prompts for failed auth (GitHub PAT, username/password, SSH passphrase)
-- [ ] Alternative auth instructions for users who prefer CLI setup
-- [ ] Helpful error messages explaining auth failures and how to fix
-- [ ] Delete unused mockData.ts (dead code cleanup)
-- [ ] Validate repo path exists before session creation
-- [ ] Helpful error when ralph CLI not found in PATH
-- [ ] Replace .unwrap() with proper error handling in DB layer
+(None — run `/gsd:new-milestone` to define next goals)
 
 ### Out of Scope
 
@@ -44,17 +58,13 @@ Users can run autonomous AI coding sessions across multiple repositories from a 
 
 ## Context
 
-**Existing codebase:**
+**Tech stack:**
 - React 18 + TypeScript frontend with shadcn/ui components
 - Rust backend with Axum, Tokio, SQLite (rusqlite)
-- git2 crate for read operations, git CLI for write operations
+- git2 crate for clone with credential callbacks
 - WebSocket for real-time output streaming
+- SSE for clone progress streaming
 - `ralph` CLI spawned as subprocess, tracked in RalphManager
-
-**Git operations context:**
-- Already using git2 (libgit2) for status, log, branches, diff
-- Using git CLI subprocess for push, pull, commit (credential handling)
-- Clone will need credential callback support in git2 or fallback to CLI
 
 **Platform directories:**
 - App data: `dirs::data_dir()/ralphtown/` (database lives here)
@@ -71,9 +81,13 @@ Users can run autonomous AI coding sessions across multiple repositories from a 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Default clone to ~/ralphtown/ | Visible, predictable, follows ~/Documents pattern | — Pending |
-| Prompt for creds on auth failure | Better UX than requiring pre-configured git credentials | — Pending |
-| Use git2 callbacks for clone auth | Leverages existing git2 dependency, supports SSH/HTTPS | — Pending |
+| Default clone to ~/ralphtown/ | Visible, predictable, follows ~/Documents pattern | ✓ Good |
+| Prompt for creds on auth failure | Better UX than requiring pre-configured git credentials | ✓ Good |
+| Use git2 callbacks for clone auth | Leverages existing git2 dependency, supports SSH/HTTPS | ✓ Good |
+| SSE for clone progress | Real-time streaming with browser-native EventSource | ✓ Good |
+| POST endpoint for credentials | Cleaner API than query params for sensitive data | ✓ Good |
+| Schema migration v1→v2 | Add orchestrator column with backwards compatibility | ✓ Good |
+| Only Ralph orchestrator initially | GSD/Gastown shown as Coming Soon for future work | ✓ Good |
 
 ---
-*Last updated: 2026-01-17 after initialization*
+*Last updated: 2026-01-17 after v1.0 milestone*

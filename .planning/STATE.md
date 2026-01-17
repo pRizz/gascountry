@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-01-17)
 
 **Core value:** Users can run autonomous AI coding sessions across multiple repositories from a single interface with real-time feedback.
-**Current focus:** Phase 7 - Agent Orchestrator Selection (Complete)
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 7 of 7 (Agent Orchestrator Selection)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-01-17 - Completed 07-02-PLAN.md
+Phase: Next milestone not started
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-01-17 — v1.0 milestone complete
 
-Progress: [##########] 100%
+Progress: Milestone complete ✓
 
-**All phases complete!**
+**Next:** Run `/gsd:new-milestone` to define v1.1 goals
 
 ## Performance Metrics
 
-**Velocity:**
+**v1.0 Milestone:**
 - Total plans completed: 12
 - Average duration: 3.5 min
 - Total execution time: 0.7 hours
@@ -37,41 +37,16 @@ Progress: [##########] 100%
 | 06-repository-manager | 1 | 5 min | 5 min |
 | 07-agent-orchestrator | 2 | 7 min | 3.5 min |
 
-**Recent Trend:**
-- Last 5 plans: 05-01 (4 min), 05-02 (4 min), 06-01 (5 min), 07-01 (5 min), 07-02 (2 min)
-- Trend: Stable
-
-*Updated after each plan completion*
-
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-| Date | Decision | Rationale | Affects |
-|------|----------|-----------|---------|
-| 2026-01-17 | CredentialState with tried_* flags | Prevent infinite credential callback loops in git2 | Backend auth |
-| 2026-01-17 | SSH: agent first, then key file | Most common case is agent; fall back to key with passphrase | Backend auth |
-| 2026-01-17 | GitHub PAT uses x-access-token username | GitHub's documented PAT authentication convention | Backend auth |
-| 2026-01-17 | POST endpoint for credentials | Cleaner API: GET for no-creds, POST for credentials in body | API design |
-| 2026-01-17 | auth_type hints in error response | Frontend can show appropriate UI based on auth type | API/Frontend |
-| 2026-01-17 | errorInfo state for persistent error display | Keep error visible in dialog until retry/close | Frontend UI |
-| 2026-01-17 | Use git2::ErrorClass for SSH/HTTPS classification | Semantic classification more reliable than string parsing | Error handling |
-| 2026-01-17 | UserActionRequired returns 422 status | Same as UnprocessableEntity, user must take action | API responses |
-| 2026-01-17 | Cancel EventSource when dialog closes during clone | Prevents orphaned connections | Frontend UI |
-| 2026-01-17 | CloneEvent enum with tagged JSON variants | Frontend can easily parse event types | API/Frontend |
-| 2026-01-17 | POST with ReadableStream for credential retry | EventSource only supports GET; POST needed for credentials | Frontend auth |
-| 2026-01-17 | Inline trust text + collapsible detail | Balance visibility with information density | Frontend UX |
-| 2026-01-17 | Only Ralph orchestrator available initially | Gsd and Gastown return is_available()=false | Orchestrator selection |
-| 2026-01-17 | Schema migration checks column existence | Idempotent migration using pragma_table_info | Database migrations |
-| 2026-01-17 | Ralph default, GSD/Gastown Coming Soon | Show future options disabled with badge | Frontend UX |
+All v1.0 decisions recorded in PROJECT.md Key Decisions table.
+Starting fresh for next milestone.
 
 ### Roadmap Evolution
 
-- Phase 6 added: Repository Manager - CRUD interface for viewing, cloning, and deleting repos
-- Phase 7 added: Agent Orchestrator Selection - Per-session orchestrator selection (Ralph, GSD, Gastown)
+v1.0 archived to `.planning/milestones/v1.0-ROADMAP.md`
 
 ### Pending Todos
 
@@ -83,6 +58,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-17T23:23:17Z
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-01-17
+Stopped at: v1.0 milestone complete
 Resume file: None
