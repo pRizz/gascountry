@@ -2,22 +2,25 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RepoSelector } from "./RepoSelector";
+import { OrchestratorSelector } from "./OrchestratorSelector";
 import { PromptInput } from "./PromptInput";
 import { ConversationView } from "./ConversationView";
 import { RalphtownInstance, Repository, mapApiRepoToRepository } from "@/types/ralphtown";
-import type { Repo } from "@/api/types";
+import type { Repo, OrchestratorType } from "@/api/types";
 import type { OutputLine } from "@/hooks/useWebSocket";
 
 interface MainPanelProps {
   activeInstance: RalphtownInstance | null;
-  onStartSession: (prompt: string, repo: Repository, branch: string, model: string) => void;
+  onStartSession: (prompt: string, repo: Repository, branch: string, model: string, orchestrator: OrchestratorType) => void;
   onSendMessage: (instanceId: string, message: string) => void;
   onCancel?: (instanceId: string) => void;
   repos: Repo[];
   outputLines?: OutputLine[];
+  selectedOrchestrator: OrchestratorType;
+  onSelectOrchestrator: (value: OrchestratorType) => void;
 }
 
-export function MainPanel({ activeInstance, onStartSession, onSendMessage, onCancel, repos, outputLines = [] }: MainPanelProps) {
+export function MainPanel({ activeInstance, onStartSession, onSendMessage, onCancel, repos, outputLines = [], selectedOrchestrator, onSelectOrchestrator }: MainPanelProps) {
   // Convert API repos to UI repositories
   const repositories = useMemo(() => {
     return repos.map((repo) => mapApiRepoToRepository(repo));
@@ -83,7 +86,7 @@ export function MainPanel({ activeInstance, onStartSession, onSendMessage, onCan
 
   const handleSubmit = (prompt: string, model: string) => {
     if (selectedRepo) {
-      onStartSession(prompt, selectedRepo, selectedBranch, model);
+      onStartSession(prompt, selectedRepo, selectedBranch, model, selectedOrchestrator);
     }
   };
 
@@ -123,6 +126,12 @@ export function MainPanel({ activeInstance, onStartSession, onSendMessage, onCan
               selectedBranch={selectedBranch}
               onSelectRepo={handleSelectRepo}
               onSelectBranch={setSelectedBranch}
+            />
+
+            {/* Orchestrator Selector */}
+            <OrchestratorSelector
+              value={selectedOrchestrator}
+              onChange={onSelectOrchestrator}
             />
 
             {/* Prompt Input */}

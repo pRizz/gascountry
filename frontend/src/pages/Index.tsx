@@ -17,11 +17,12 @@ import {
   useRunSession,
 } from "@/api/hooks";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Repo, SessionStatus } from "@/api/types";
+import type { Repo, SessionStatus, OrchestratorType } from "@/api/types";
 
 const Index = () => {
   const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null);
   const [outputLines, setOutputLines] = useState<Map<string, OutputLine[]>>(new Map());
+  const [selectedOrchestrator, setSelectedOrchestrator] = useState<OrchestratorType>("ralph");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -124,13 +125,15 @@ const Index = () => {
     prompt: string,
     repo: Repository,
     branch: string,
-    _model: string
+    _model: string,
+    orchestrator: OrchestratorType
   ) => {
     try {
       // Create session
       const session = await createSession.mutateAsync({
         repo_id: repo.id,
         name: prompt.length > 30 ? prompt.slice(0, 30) + "..." : prompt,
+        orchestrator,
       });
 
       // Start ralph with the prompt
@@ -208,6 +211,8 @@ const Index = () => {
         onCancel={handleCancel}
         repos={repos}
         outputLines={activeOutputLines}
+        selectedOrchestrator={selectedOrchestrator}
+        onSelectOrchestrator={setSelectedOrchestrator}
       />
     </div>
   );
