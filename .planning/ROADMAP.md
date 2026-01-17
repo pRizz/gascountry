@@ -12,7 +12,7 @@ This roadmap delivers git clone functionality with authentication handling and i
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Cleanup** - Remove dead code and improve DB error handling
+- [x] **Phase 1: Cleanup** - Remove dead code and improve DB error handling
 - [ ] **Phase 2: Core Clone** - Basic clone dialog with URL input and default destination
 - [ ] **Phase 3: Clone Progress** - Real-time progress UI during clone operations
 - [ ] **Phase 4: Error Handling** - Helpful error messages for common failure scenarios
@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 1 plan
 
 Plans:
-- [ ] 01-01-PLAN.md — Delete mockData.ts and replace .unwrap() with proper error handling
+- [x] 01-01-PLAN.md — Delete mockData.ts and replace .unwrap() with proper error handling
 
 ### Phase 2: Core Clone
 **Goal**: Users can clone repositories from git URLs to the default location
@@ -96,7 +96,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Cleanup | 0/1 | Not started | - |
+| 1. Cleanup | 1/1 | Complete | 2026-01-17 |
 | 2. Core Clone | 0/? | Not started | - |
 | 3. Clone Progress | 0/? | Not started | - |
 | 4. Error Handling | 0/? | Not started | - |

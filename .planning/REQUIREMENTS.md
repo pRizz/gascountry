@@ -30,8 +30,8 @@
 
 ### Cleanup
 
-- [ ] **CLEAN-01**: Delete unused mockData.ts file
-- [ ] **CLEAN-02**: Replace .unwrap() with proper error handling in DB layer
+- [x] **CLEAN-01**: Delete unused mockData.ts file
+- [x] **CLEAN-02**: Replace .unwrap() with proper error handling in DB layer
 
 ## v2 Requirements
 
@@ -72,8 +72,8 @@
 | ERR-02 | Phase 4 | Pending |
 | ERR-03 | Phase 4 | Pending |
 | ERR-04 | Phase 4 | Pending |
-| CLEAN-01 | Phase 1 | Pending |
-| CLEAN-02 | Phase 1 | Pending |
+| CLEAN-01 | Phase 1 | Complete |
+| CLEAN-02 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 16 total
@@ -82,4 +82,4 @@
 
 ---
 *Requirements defined: 2026-01-17*
-*Last updated: 2026-01-17 after roadmap creation*
+*Last updated: 2026-01-17 after Phase 1 completion*

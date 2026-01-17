@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-17)
 
 **Core value:** Users can run autonomous AI coding sessions across multiple repositories from a single interface with real-time feedback.
-**Current focus:** Phase 1 - Cleanup
+**Current focus:** Phase 2 - Core Clone
 
 ## Current Position
 
-Phase: 1 of 5 (Cleanup)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-01-17 - Completed 01-01-PLAN.md
+Phase: 2 of 5 (Core Clone)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-01-17 - Phase 1 verified complete
 
 Progress: [##........] 20%
 
@@ -59,5 +59,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-17
-Stopped at: Completed 01-01-PLAN.md (Phase 1 complete)
+Stopped at: Phase 1 complete, ready for Phase 2
 Resume file: None
