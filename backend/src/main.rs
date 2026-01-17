@@ -1,3 +1,4 @@
+pub mod db;
 mod error;
 
 use axum::{routing::get, Json, Router};

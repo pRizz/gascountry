@@ -6,7 +6,7 @@
 - [x] Step 0: Rename project from Gascountry to Ralphtown
 - [x] Step 1: Project restructure to monorepo
 - [x] Step 2: Backend scaffold with Axum
-- [ ] Step 3: Database layer with SQLite
+- [x] Step 3: Database layer with SQLite
 - [ ] Step 4: Repository management API
 - [ ] Step 5: Session management API
 - [ ] Step 6: WebSocket infrastructure
@@ -107,15 +107,45 @@ ralphtown/
 
 ---
 
-## Next: Step 3 - Database Layer with SQLite
+## Step 3 - COMPLETED
+
+### Changes Made
+- [x] Added dependencies: rusqlite 0.33 (bundled), dirs 6, uuid 1 (v4, serde), chrono 0.4 (serde), thiserror 2, tempfile 3 (dev)
+- [x] Created `backend/src/db/schema.rs` - Schema SQL for repos, sessions, messages, output_logs, config tables with indexes
+- [x] Created `backend/src/db/models.rs` - Rust structs: Repo, Session, SessionStatus, Message, MessageRole, OutputLog, OutputStream, ConfigEntry
+- [x] Created `backend/src/db/mod.rs` - Database struct with connection pool (Arc<Mutex<Connection>>)
+- [x] Implemented `Database::new(path)` and `Database::in_memory()` for testing
+- [x] Implemented `Database::default_path()` using dirs crate → `~/.local/share/ralphtown/ralphtown.db`
+- [x] Full CRUD operations: repos, sessions, messages, config
+- [x] Session status updates with timestamps
+- [x] Foreign key cascade deletes enabled
+
+### Files Added/Modified
+- `backend/Cargo.toml` - Added new dependencies
+- `backend/src/db/mod.rs` (new) - Database struct, connection management, CRUD operations
+- `backend/src/db/schema.rs` (new) - Schema creation SQL
+- `backend/src/db/models.rs` (new) - Rust structs matching tables
+- `backend/src/main.rs` - Added `pub mod db;`
+
+### Verification
+- Backend cargo check: ✅ PASS
+- Backend cargo test: ✅ PASS (7 tests - 1 health + 6 db tests)
+- Frontend tests: ✅ PASS (1 test)
+
+---
+
+## Next: Step 4 - Repository Management API
 
 Tasks:
-- [ ] Add rusqlite dependency
-- [ ] Create `backend/src/db/mod.rs` - Database struct, connection management
-- [ ] Create `backend/src/db/schema.rs` - Schema creation SQL
-- [ ] Create `backend/src/db/models.rs` - Rust structs matching tables
-- [ ] Store database in user's data directory (dirs crate)
-- [ ] Add tests for schema creation and basic CRUD
+- [ ] Create `backend/src/api/mod.rs` - API module structure
+- [ ] Create `backend/src/api/repos.rs` - Repo endpoints
+- [ ] `GET /api/repos` - List all repos
+- [ ] `POST /api/repos` - Add repo (validate git repo)
+- [ ] `DELETE /api/repos/{id}` - Remove repo
+- [ ] `POST /api/repos/scan` - Scan directories for git repos
+- [ ] Add git2 dependency for repo validation
+- [ ] Inject Database into Axum state
+- [ ] Add integration tests
 
 ---
 
