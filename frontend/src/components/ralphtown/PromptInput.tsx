@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { availableModels, quickActions } from "@/data/mockData";
+import { availableModels, quickActions } from "@/constants";
 
 interface PromptInputProps {
   onSubmit: (prompt: string, model: string) => void;
