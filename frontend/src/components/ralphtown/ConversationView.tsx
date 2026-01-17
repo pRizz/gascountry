@@ -15,6 +15,8 @@ const statusConfig = {
   running: { icon: Loader2, label: "Running", className: "text-agent-running animate-spin" },
   error: { icon: AlertCircle, label: "Error", className: "text-agent-error" },
   pending: { icon: Clock, label: "Pending", className: "text-agent-pending" },
+  idle: { icon: Clock, label: "Idle", className: "text-muted-foreground" },
+  cancelled: { icon: AlertCircle, label: "Cancelled", className: "text-agent-error" },
 };
 
 function ChatMessageBubble({ message }: { message: ChatMessage }) {

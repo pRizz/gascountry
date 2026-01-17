@@ -1,6 +1,6 @@
 # Ralphtown Implementation Scratchpad
 
-## Current Focus: Step 10 Complete - Moving to Step 11
+## Current Focus: Step 11 Complete - Moving to Step 12
 
 ### Progress Checklist (from plan.md)
 - [x] Step 0: Rename project from Gascountry to Ralphtown
@@ -14,7 +14,7 @@
 - [x] Step 8: Output streaming to WebSocket
 - [x] Step 9: Interrupt/cancel functionality
 - [x] Step 10: Git operations
-- [ ] Step 11: Frontend API integration
+- [x] Step 11: Frontend API integration
 - [ ] Step 12: Frontend WebSocket integration
 - [ ] Step 13: Configuration management
 - [ ] Step 14: Service installation
@@ -334,16 +334,58 @@ ralphtown/
 
 ---
 
-## Next: Step 11 - Frontend API Integration
+## Step 11 - Frontend API Integration - COMPLETED
 
-Tasks:
-- [ ] Create API client module with fetch wrappers
-- [ ] Set up React Query for data fetching and caching
-- [ ] Replace mock data in Index.tsx with real API calls
-- [ ] Update RepoSelector to fetch from `/api/repos`
-- [ ] Update session creation to POST to `/api/sessions`
-- [ ] Add git command buttons that call git endpoints
-- [ ] Handle loading and error states
+### Backend API Summary (for reference)
+```
+GET  /api/repos              → Vec<Repo> { id, path, name, created_at, updated_at }
+POST /api/repos              → AddRepoRequest { path, name? } → Repo
+DEL  /api/repos/{id}         → ()
+
+GET  /api/sessions           → Vec<Session> { id, repo_id, name?, status, created_at, updated_at }
+POST /api/sessions           → CreateSessionRequest { repo_id, name? } → Session
+GET  /api/sessions/{id}      → SessionDetails { session, messages }
+DEL  /api/sessions/{id}      → ()
+POST /api/sessions/{id}/run  → RunSessionRequest { prompt } → RunSessionResponse
+POST /api/sessions/{id}/cancel → CancelSessionResponse
+
+GET  /api/sessions/{id}/git/status   → GitStatusResponse { branch, staged, unstaged, untracked }
+GET  /api/sessions/{id}/git/branches → GitBranchesResponse { branches[] }
+```
+
+### Tasks
+- [x] 11.1 Create API client module (`frontend/src/api/client.ts`)
+  - Base fetch wrapper with error handling
+  - Type-safe API functions for all endpoints
+- [x] 11.2 Create API type definitions (`frontend/src/api/types.ts`)
+  - Mirror backend DTOs for type safety
+- [x] 11.3 Create React Query hooks (`frontend/src/api/hooks.ts`)
+  - useRepos, useSessions, useSession
+  - useMutations for create/delete/run
+- [x] 11.4 Update Index.tsx to use real API
+  - Replace mockRalphtownInstances with useQuery
+  - Wire handleStartSession to real session creation + run
+- [~] 11.5 Update RepoSelector to fetch branches from git/branches endpoint
+  - Deferred: Requires session to exist first to call git API; branches will come via git/branches API per-session
+- [x] 11.6 Handle loading/error states in UI
+  - Loading state in Index.tsx
+  - Error handling via toast notifications
+
+### Files Added/Modified
+- `frontend/src/api/types.ts` (new) - API type definitions matching backend DTOs
+- `frontend/src/api/client.ts` (new) - Fetch wrappers with error handling
+- `frontend/src/api/hooks.ts` (new) - React Query hooks for data fetching
+- `frontend/src/api/index.ts` (new) - Re-exports
+- `frontend/src/types/ralphtown.ts` - Added adapter functions to map API to UI types
+- `frontend/src/pages/Index.tsx` - Replaced mock data with real API calls
+- `frontend/src/components/ralphtown/MainPanel.tsx` - Added repos prop, use API repos
+- `frontend/src/components/ralphtown/AgentListItem.tsx` - Added idle/cancelled status
+- `frontend/src/components/ralphtown/ConversationView.tsx` - Added idle/cancelled status
+
+### Verification
+- Frontend build: ✅ PASS
+- Frontend tests: ✅ PASS (1 test)
+- Backend tests: ✅ PASS (58 tests)
 
 ---
 

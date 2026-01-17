@@ -1,21 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RepoSelector } from "./RepoSelector";
 import { PromptInput } from "./PromptInput";
 import { ConversationView } from "./ConversationView";
-import { RalphtownInstance, Repository } from "@/types/ralphtown";
-import { mockRepositories } from "@/data/mockData";
+import { RalphtownInstance, Repository, mapApiRepoToRepository } from "@/types/ralphtown";
+import type { Repo } from "@/api/types";
 
 interface MainPanelProps {
   activeInstance: RalphtownInstance | null;
   onStartSession: (prompt: string, repo: Repository, branch: string, model: string) => void;
   onSendMessage: (instanceId: string, message: string) => void;
+  repos: Repo[];
 }
 
-export function MainPanel({ activeInstance, onStartSession, onSendMessage }: MainPanelProps) {
-  const [selectedRepo, setSelectedRepo] = useState<Repository | null>(mockRepositories[0]);
-  const [selectedBranch, setSelectedBranch] = useState(mockRepositories[0].defaultBranch);
+export function MainPanel({ activeInstance, onStartSession, onSendMessage, repos }: MainPanelProps) {
+  // Convert API repos to UI repositories
+  const repositories = useMemo(() => {
+    return repos.map((repo) => mapApiRepoToRepository(repo));
+  }, [repos]);
+
+  const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState("main");
+
+  // Initialize selected repo when repos load
+  useEffect(() => {
+    if (repositories.length > 0 && !selectedRepo) {
+      setSelectedRepo(repositories[0]);
+      setSelectedBranch(repositories[0].defaultBranch);
+    }
+  }, [repositories, selectedRepo]);
 
   const handleSelectRepo = (repo: Repository) => {
     setSelectedRepo(repo);
@@ -54,7 +68,7 @@ export function MainPanel({ activeInstance, onStartSession, onSendMessage }: Mai
           <div className="w-full max-w-2xl flex flex-col items-center gap-6">
             {/* Repo Selector */}
             <RepoSelector
-              repositories={mockRepositories}
+              repositories={repositories}
               selectedRepo={selectedRepo}
               selectedBranch={selectedBranch}
               onSelectRepo={handleSelectRepo}

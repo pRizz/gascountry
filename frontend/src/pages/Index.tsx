@@ -1,88 +1,114 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AgentSidebar } from "@/components/ralphtown/AgentSidebar";
 import { MainPanel } from "@/components/ralphtown/MainPanel";
-import { mockRalphtownInstances } from "@/data/mockData";
-import { RalphtownInstance, Repository, ChatMessage } from "@/types/ralphtown";
+import {
+  RalphtownInstance,
+  Repository,
+  ChatMessage,
+  mapApiSessionToInstance,
+} from "@/types/ralphtown";
 import { useToast } from "@/hooks/use-toast";
+import {
+  useSessions,
+  useSession,
+  useRepos,
+  useCreateSession,
+  useRunSession,
+} from "@/api/hooks";
+import type { Repo } from "@/api/types";
 
 const Index = () => {
-  const [instances, setInstances] = useState<RalphtownInstance[]>(mockRalphtownInstances);
   const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const activeInstance = activeInstanceId
-    ? instances.find((i) => i.id === activeInstanceId) || null
-    : null;
+  // Fetch sessions and repos from API
+  const { data: sessions = [], isLoading: sessionsLoading } = useSessions();
+  const { data: repos = [], isLoading: reposLoading } = useRepos();
+  const { data: activeSessionDetails } = useSession(activeInstanceId);
+
+  // Mutations
+  const createSession = useCreateSession();
+  const runSession = useRunSession();
+
+  // Create a map of repos for quick lookup
+  const repoMap = useMemo(() => {
+    const map = new Map<string, Repo>();
+    repos.forEach((repo) => map.set(repo.id, repo));
+    return map;
+  }, [repos]);
+
+  // Convert API sessions to UI instances
+  const instances: RalphtownInstance[] = useMemo(() => {
+    return sessions.map((session) =>
+      mapApiSessionToInstance(session, repoMap.get(session.repo_id))
+    );
+  }, [sessions, repoMap]);
+
+  // Get full active instance with messages
+  const activeInstance = useMemo(() => {
+    if (!activeInstanceId || !activeSessionDetails) return null;
+    return mapApiSessionToInstance(
+      activeSessionDetails,
+      repoMap.get(activeSessionDetails.repo_id)
+    );
+  }, [activeInstanceId, activeSessionDetails, repoMap]);
 
   const handleNewSession = () => {
     setActiveInstanceId(null);
   };
 
-  const handleStartSession = (
+  const handleStartSession = async (
     prompt: string,
     repo: Repository,
     branch: string,
-    model: string
+    _model: string
   ) => {
-    const newInstance: RalphtownInstance = {
-      id: crypto.randomUUID(),
-      title: prompt.length > 30 ? prompt.slice(0, 30) + "..." : prompt,
-      repo: repo.name,
-      branch,
-      status: "running",
-      createdAt: new Date(),
-      model,
-      messages: [
-        {
-          id: crypto.randomUUID(),
-          role: "user",
-          content: prompt,
-          timestamp: new Date(),
-        },
-        {
-          id: crypto.randomUUID(),
-          role: "agent",
-          content: `Starting work on "${prompt}"...\n\nI'm analyzing the codebase in ${repo.fullName} on branch ${branch}.`,
-          timestamp: new Date(),
-        },
-      ],
-    };
+    try {
+      // Create session
+      const session = await createSession.mutateAsync({
+        repo_id: repo.id,
+        name: prompt.length > 30 ? prompt.slice(0, 30) + "..." : prompt,
+      });
 
-    setInstances((prev) => [newInstance, ...prev]);
-    setActiveInstanceId(newInstance.id);
+      // Start ralph with the prompt
+      await runSession.mutateAsync({
+        id: session.id,
+        req: { prompt },
+      });
 
-    toast({
-      title: "Session started",
-      description: `Running "${newInstance.title}" on ${repo.fullName}`,
-    });
+      setActiveInstanceId(session.id);
+
+      toast({
+        title: "Session started",
+        description: `Running on ${repo.name}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to start session",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSendMessage = (instanceId: string, content: string) => {
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content,
-      timestamp: new Date(),
-    };
-
-    const agentResponse: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "agent",
-      content: `Understood. I'll work on that now...\n\nProcessing your request: "${content}"`,
-      timestamp: new Date(),
-    };
-
-    setInstances((prev) =>
-      prev.map((instance) =>
-        instance.id === instanceId
-          ? {
-              ...instance,
-              messages: [...instance.messages, userMessage, agentResponse],
-            }
-          : instance
-      )
-    );
+    // For now, follow-up messages just run ralph again
+    // TODO: Implement proper message handling through WebSocket
+    runSession.mutate({
+      id: instanceId,
+      req: { prompt: content },
+    });
   };
+
+  const isLoading = sessionsLoading || reposLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full">
@@ -96,6 +122,7 @@ const Index = () => {
         activeInstance={activeInstance}
         onStartSession={handleStartSession}
         onSendMessage={handleSendMessage}
+        repos={repos}
       />
     </div>
   );

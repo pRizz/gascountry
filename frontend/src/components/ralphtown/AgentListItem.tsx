@@ -13,6 +13,8 @@ const statusIcons = {
   running: Loader2,
   error: AlertCircle,
   pending: Clock,
+  idle: Clock,
+  cancelled: AlertCircle,
 };
 
 export function AgentListItem({ instance, isActive, onClick }: AgentListItemProps) {
@@ -41,7 +43,9 @@ export function AgentListItem({ instance, isActive, onClick }: AgentListItemProp
             instance.status === "completed" && "text-muted-foreground",
             instance.status === "running" && "text-agent-running animate-spin",
             instance.status === "error" && "text-agent-error",
-            instance.status === "pending" && "text-agent-pending"
+            instance.status === "pending" && "text-agent-pending",
+            instance.status === "idle" && "text-muted-foreground",
+            instance.status === "cancelled" && "text-agent-error"
           )}
         />
         <div className="flex-1 min-w-0">
