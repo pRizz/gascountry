@@ -6,7 +6,7 @@ import type { CloneProgress, Repo } from "@/api/types";
 export interface UseCloneProgressOptions {
   onProgress: (progress: CloneProgress) => void;
   onComplete: (repo: Repo, message: string) => void;
-  onError: (message: string) => void;
+  onError: (message: string, helpSteps?: string[]) => void;
 }
 
 export interface UseCloneProgressReturn {
@@ -83,8 +83,11 @@ export function useCloneProgress(
         const messageEvent = event as MessageEvent;
         if (messageEvent.data) {
           try {
-            const data = JSON.parse(messageEvent.data) as { message: string };
-            onErrorRef.current(data.message);
+            const data = JSON.parse(messageEvent.data) as {
+              message: string;
+              help_steps?: string[];
+            };
+            onErrorRef.current(data.message, data.help_steps);
           } catch {
             onErrorRef.current("Clone failed");
           }
