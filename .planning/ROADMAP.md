@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Cleanup** - Remove dead code and improve DB error handling
 - [x] **Phase 2: Core Clone** - Basic clone dialog with URL input and default destination
-- [ ] **Phase 3: Clone Progress** - Real-time progress UI during clone operations
+- [x] **Phase 3: Clone Progress** - Real-time progress UI during clone operations
 - [ ] **Phase 4: Error Handling** - Helpful error messages for common failure scenarios
 - [ ] **Phase 5: Authentication** - Credential prompts for auth failures
 
@@ -60,7 +60,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — Backend SSE endpoint + git2 progress callback
-- [ ] 03-02-PLAN.md — Frontend useCloneProgress hook + CloneDialog progress UI
+- [x] 03-02-PLAN.md — Frontend useCloneProgress hook + CloneDialog progress UI
 
 ### Phase 4: Error Handling
 **Goal**: Users see helpful, actionable error messages for common failure scenarios
@@ -100,7 +100,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Cleanup | 1/1 | Complete | 2026-01-17 |
 | 2. Core Clone | 2/2 | Complete | 2026-01-17 |
-| 3. Clone Progress | 1/2 | In progress | - |
+| 3. Clone Progress | 2/2 | Complete | 2026-01-17 |
 | 4. Error Handling | 0/? | Not started | - |
 | 5. Authentication | 0/? | Not started | - |
 
