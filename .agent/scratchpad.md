@@ -1,10 +1,10 @@
 # Ralphtown Implementation Scratchpad
 
-## Current Focus: Step 0 Complete - Moving to Step 1
+## Current Focus: Step 1 Complete - Moving to Step 2
 
 ### Progress Checklist (from plan.md)
 - [x] Step 0: Rename project from Gascountry to Ralphtown
-- [ ] Step 1: Project restructure to monorepo
+- [x] Step 1: Project restructure to monorepo
 - [ ] Step 2: Backend scaffold with Axum
 - [ ] Step 3: Database layer with SQLite
 - [ ] Step 4: Repository management API
@@ -52,17 +52,52 @@
 
 ---
 
-## Next: Step 1 - Project Restructure to Monorepo
+## Step 1 - COMPLETED
 
-### Tasks
-- [ ] Create `/frontend` directory and move React code into it
-- [ ] Create `/backend` directory for Rust project
-- [ ] Create workspace `Cargo.toml` at root
-- [ ] Update frontend paths (vite.config.ts, package.json scripts)
-- [ ] Update .gitignore for Rust artifacts
+### Changes Made
+- [x] Created `/frontend` directory and moved all React code into it
+- [x] Created `/backend` directory with Rust project scaffold
+- [x] Created workspace `Cargo.toml` at root with `members = ["backend"]`
+- [x] Frontend paths already use relative references - no changes needed
+- [x] Updated `.gitignore` for Rust artifacts (target/, Cargo.lock)
+- [x] Created `backend/src/main.rs` with minimal Axum server and health endpoint
+
+### Directory Structure
+```
+ralphtown/
+├── Cargo.toml              # Workspace manifest
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── src/
+│   └── ...
+├── backend/
+│   ├── Cargo.toml
+│   └── src/main.rs
+└── README.md
+```
+
+### Verification
+- Frontend build: ✅ PASS (`npm run build` from frontend/)
+- Frontend tests: ✅ PASS (1/1)
+- Backend check: ✅ PASS (`cargo check` from root)
+
+---
+
+## Next: Step 2 - Backend Scaffold with Axum
+
+Step 2 is partially complete since we already have:
+- Axum server with health check endpoint
+- CORS configuration
+- Basic logging with tracing
+
+Remaining tasks for Step 2:
+- [ ] Add basic error handling types
+- [ ] Test that server starts and health endpoint returns 200
 
 ---
 
 ## Notes
 - Lint has pre-existing errors in shadcn-ui components (not from rename)
 - Tests pass (1/1)
+- Backend uses Axum 0.8, tower-http 0.6
