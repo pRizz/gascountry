@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
 use thiserror::Error;
+use tokio::sync::mpsc;
 
 /// Git operation errors
 #[derive(Debug, Error)]
@@ -93,6 +94,23 @@ pub struct CommandOutput {
     pub success: bool,
     pub stdout: String,
     pub stderr: String,
+}
+
+/// Clone progress information from git2 transfer_progress callback
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CloneProgress {
+    /// Number of objects received so far
+    pub received_objects: usize,
+    /// Total number of objects to receive
+    pub total_objects: usize,
+    /// Number of bytes received so far
+    pub received_bytes: usize,
+    /// Number of objects indexed (processed) so far
+    pub indexed_objects: usize,
+    /// Total number of deltas to resolve
+    pub total_deltas: usize,
+    /// Number of deltas resolved so far
+    pub indexed_deltas: usize,
 }
 
 /// Git operations manager
@@ -349,6 +367,44 @@ impl GitManager {
     /// to avoid blocking the async runtime.
     pub fn clone(url: &str, dest: &Path) -> GitResult<git2::Repository> {
         git2::build::RepoBuilder::new()
+            .clone(url, dest)
+            .map_err(|e| GitError::OperationFailed(format!("Clone failed: {}", e.message())))
+    }
+
+    /// Clone a repository with progress reporting
+    ///
+    /// This is a synchronous operation. Callers should use `tokio::task::spawn_blocking`
+    /// to avoid blocking the async runtime.
+    ///
+    /// Progress updates are sent via the provided mpsc::Sender. Uses try_send() to
+    /// drop updates if the channel is full, providing natural throttling.
+    pub fn clone_with_progress(
+        url: &str,
+        dest: &Path,
+        progress_tx: mpsc::Sender<CloneProgress>,
+    ) -> GitResult<git2::Repository> {
+        let mut callbacks = git2::RemoteCallbacks::new();
+
+        callbacks.transfer_progress(move |stats| {
+            let progress = CloneProgress {
+                received_objects: stats.received_objects(),
+                total_objects: stats.total_objects(),
+                received_bytes: stats.received_bytes(),
+                indexed_objects: stats.indexed_objects(),
+                total_deltas: stats.total_deltas(),
+                indexed_deltas: stats.indexed_deltas(),
+            };
+            // Use try_send to drop updates if channel is full (natural throttling)
+            // This prevents backpressure from blocking the git operation
+            let _ = progress_tx.try_send(progress);
+            true // continue cloning
+        });
+
+        let mut fetch_options = git2::FetchOptions::new();
+        fetch_options.remote_callbacks(callbacks);
+
+        git2::build::RepoBuilder::new()
+            .fetch_options(fetch_options)
             .clone(url, dest)
             .map_err(|e| GitError::OperationFailed(format!("Clone failed: {}", e.message())))
     }
