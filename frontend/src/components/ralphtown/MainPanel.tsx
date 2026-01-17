@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RepoSelector } from "./RepoSelector";
@@ -26,6 +26,9 @@ export function MainPanel({ activeInstance, onStartSession, onSendMessage, onCan
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
   const [selectedBranch, setSelectedBranch] = useState("main");
 
+  // Track a pending repo selection (by ID) that should be applied when repos list updates
+  const pendingRepoIdRef = useRef<string | null>(null);
+
   // Initialize or reconcile selected repo when repo list changes
   useEffect(() => {
     if (repositories.length === 0) {
@@ -33,6 +36,18 @@ export function MainPanel({ activeInstance, onStartSession, onSendMessage, onCan
         setSelectedRepo(null);
       }
       return;
+    }
+
+    // Check if there's a pending repo selection to apply
+    if (pendingRepoIdRef.current) {
+      const pendingRepo = repositories.find((repo) => repo.id === pendingRepoIdRef.current);
+      if (pendingRepo) {
+        setSelectedRepo(pendingRepo);
+        setSelectedBranch(pendingRepo.defaultBranch);
+        pendingRepoIdRef.current = null;
+        return;
+      }
+      // Pending repo not found yet, keep waiting (don't clear the ref)
     }
 
     if (!selectedRepo) {
@@ -43,8 +58,11 @@ export function MainPanel({ activeInstance, onStartSession, onSendMessage, onCan
 
     const matchedRepo = repositories.find((repo) => repo.id === selectedRepo.id);
     if (!matchedRepo) {
-      setSelectedRepo(repositories[0]);
-      setSelectedBranch(repositories[0].defaultBranch);
+      // Only reset to first repo if there's no pending selection
+      if (!pendingRepoIdRef.current) {
+        setSelectedRepo(repositories[0]);
+        setSelectedBranch(repositories[0].defaultBranch);
+      }
       return;
     }
 
@@ -57,6 +75,8 @@ export function MainPanel({ activeInstance, onStartSession, onSendMessage, onCan
   }, [repositories, selectedRepo, selectedBranch]);
 
   const handleSelectRepo = (repo: Repository) => {
+    // Store the repo ID as pending in case the repos list hasn't updated yet
+    pendingRepoIdRef.current = repo.id;
     setSelectedRepo(repo);
     setSelectedBranch(repo.defaultBranch);
   };
