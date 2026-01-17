@@ -112,17 +112,18 @@ Plans:
 ### Phase 7: Agent Orchestrator Selection
 **Goal**: Users can select different agent orchestrators per session with future options visible
 **Depends on**: Phase 5
-**Requirements**: TBD
+**Requirements**: ORCH-01, ORCH-02, ORCH-03, ORCH-04, ORCH-05
 **Success Criteria** (what must be TRUE):
   1. User can select an orchestrator when starting a session (dropdown or selector)
   2. Ralph is available and functional as the default orchestrator
   3. Other orchestrators (GSD, Gastown) are shown but disabled with "Coming Soon" badge
   4. Selected orchestrator is persisted per-session in the database
   5. Session uses the selected orchestrator when running
-**Plans**: 0 plans
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 7 to break down)
+- [ ] 07-01-PLAN.md — Backend schema migration, Orchestrator enum, API update
+- [ ] 07-02-PLAN.md — Frontend OrchestratorSelector component and Index.tsx integration
 
 ## Progress
 
@@ -137,7 +138,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 4. Error Handling | 2/2 | Complete | 2026-01-17 |
 | 5. Authentication | 2/2 | Complete | 2026-01-17 |
 | 6. Repository Manager | 0/1 | Planned | — |
-| 7. Agent Orchestrator Selection | 0/? | Not Started | — |
+| 7. Agent Orchestrator Selection | 0/2 | Planned | — |
 
 ---
 *Roadmap created: 2026-01-17*
