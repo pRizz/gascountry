@@ -9,7 +9,7 @@ use tokio::process::{Child, Command};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::db::models::SessionStatus as DbSessionStatus;
+use crate::db::models::{OutputStream as DbOutputStream, SessionStatus as DbSessionStatus};
 use crate::db::Database;
 use crate::ws::messages::{OutputStream, ServerMessage, SessionStatus as WsSessionStatus};
 use crate::ws::ConnectionManager;
@@ -165,6 +165,8 @@ impl RalphManager {
         tokio::spawn(async move {
             let stdout_connections = connections_clone.clone();
             let stderr_connections = connections_clone.clone();
+            let stdout_db = db_clone.clone();
+            let stderr_db = db_clone.clone();
 
             // Spawn stdout reader
             let stdout_handle = tokio::spawn({
@@ -173,6 +175,14 @@ impl RalphManager {
                     let reader = BufReader::new(stdout);
                     let mut lines = reader.lines();
                     while let Ok(Some(line)) = lines.next_line().await {
+                        // Persist to database
+                        if let Err(e) =
+                            stdout_db.insert_output_log(session_id, DbOutputStream::Stdout, &line)
+                        {
+                            tracing::warn!("Failed to persist stdout output: {}", e);
+                        }
+
+                        // Broadcast to WebSocket subscribers
                         stdout_connections
                             .broadcast(
                                 session_id,
@@ -194,6 +204,14 @@ impl RalphManager {
                     let reader = BufReader::new(stderr);
                     let mut lines = reader.lines();
                     while let Ok(Some(line)) = lines.next_line().await {
+                        // Persist to database
+                        if let Err(e) =
+                            stderr_db.insert_output_log(session_id, DbOutputStream::Stderr, &line)
+                        {
+                            tracing::warn!("Failed to persist stderr output: {}", e);
+                        }
+
+                        // Broadcast to WebSocket subscribers
                         stderr_connections
                             .broadcast(
                                 session_id,

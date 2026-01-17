@@ -9,7 +9,7 @@ use rusqlite::{params, Connection};
 use thiserror::Error;
 use uuid::Uuid;
 
-use models::{Message, MessageRole, Repo, Session, SessionStatus};
+use models::{Message, MessageRole, OutputStream, OutputLog, Repo, Session, SessionStatus};
 use schema::{CREATE_TABLES, GET_SCHEMA_VERSION, SCHEMA_VERSION, UPSERT_SCHEMA_VERSION};
 
 /// Database error types
@@ -447,6 +447,121 @@ impl Database {
         conn.execute("DELETE FROM config WHERE key = ?1", params![key])?;
         Ok(())
     }
+
+    // ==================== Output Log Operations ====================
+
+    /// Insert a new output log entry
+    pub fn insert_output_log(
+        &self,
+        session_id: Uuid,
+        stream: OutputStream,
+        content: &str,
+    ) -> DbResult<OutputLog> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now();
+
+        conn.execute(
+            "INSERT INTO output_logs (session_id, stream, content, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                session_id.to_string(),
+                stream.as_str(),
+                content,
+                now.to_rfc3339()
+            ],
+        )?;
+
+        let id = conn.last_insert_rowid();
+
+        Ok(OutputLog {
+            id,
+            session_id,
+            stream,
+            content: content.to_string(),
+            created_at: now,
+        })
+    }
+
+    /// List output logs for a session
+    ///
+    /// # Arguments
+    /// * `session_id` - The session to get logs for
+    /// * `stream_filter` - Optional filter by stream type (stdout/stderr)
+    /// * `limit` - Optional limit on number of results
+    /// * `offset` - Optional offset for pagination
+    pub fn list_output_logs(
+        &self,
+        session_id: Uuid,
+        stream_filter: Option<OutputStream>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> DbResult<Vec<OutputLog>> {
+        let conn = self.conn.lock().unwrap();
+
+        let base_query = "SELECT id, session_id, stream, content, created_at FROM output_logs WHERE session_id = ?1";
+
+        // SQLite requires LIMIT when using OFFSET, so use -1 (unlimited) when only offset is provided
+        let query = match (stream_filter, limit, offset) {
+            (Some(_), Some(lim), Some(off)) => format!(
+                "{} AND stream = ?2 ORDER BY id LIMIT {} OFFSET {}",
+                base_query, lim, off
+            ),
+            (Some(_), Some(lim), None) => {
+                format!("{} AND stream = ?2 ORDER BY id LIMIT {}", base_query, lim)
+            }
+            (Some(_), None, Some(off)) => {
+                format!("{} AND stream = ?2 ORDER BY id LIMIT -1 OFFSET {}", base_query, off)
+            }
+            (Some(_), None, None) => format!("{} AND stream = ?2 ORDER BY id", base_query),
+            (None, Some(lim), Some(off)) => {
+                format!("{} ORDER BY id LIMIT {} OFFSET {}", base_query, lim, off)
+            }
+            (None, Some(lim), None) => format!("{} ORDER BY id LIMIT {}", base_query, lim),
+            (None, None, Some(off)) => format!("{} ORDER BY id LIMIT -1 OFFSET {}", base_query, off),
+            (None, None, None) => format!("{} ORDER BY id", base_query),
+        };
+
+        let logs = if let Some(stream) = stream_filter {
+            let mut stmt = conn.prepare(&query)?;
+            stmt.query_map(params![session_id.to_string(), stream.as_str()], |row| {
+                Ok(OutputLog {
+                    id: row.get(0)?,
+                    session_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    stream: OutputStream::from_str(&row.get::<_, String>(2)?).unwrap(),
+                    content: row.get(3)?,
+                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
+                        .unwrap()
+                        .with_timezone(&Utc),
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?
+        } else {
+            let mut stmt = conn.prepare(&query)?;
+            stmt.query_map(params![session_id.to_string()], |row| {
+                Ok(OutputLog {
+                    id: row.get(0)?,
+                    session_id: Uuid::parse_str(&row.get::<_, String>(1)?).unwrap(),
+                    stream: OutputStream::from_str(&row.get::<_, String>(2)?).unwrap(),
+                    content: row.get(3)?,
+                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
+                        .unwrap()
+                        .with_timezone(&Utc),
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?
+        };
+
+        Ok(logs)
+    }
+
+    /// Delete output logs for a session
+    pub fn delete_output_logs(&self, session_id: Uuid) -> DbResult<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "DELETE FROM output_logs WHERE session_id = ?1",
+            params![session_id.to_string()],
+        )?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -620,5 +735,105 @@ mod tests {
         // Session should be gone
         let result = db.get_session(session.id);
         assert!(matches!(result, Err(DbError::NotFound)));
+    }
+
+    #[test]
+    fn test_output_log_crud() {
+        let db = Database::in_memory().expect("Failed to create in-memory database");
+
+        // Create repo and session
+        let repo = db
+            .insert_repo("/path/to/repo", "my-repo")
+            .expect("Failed to insert repo");
+        let session = db
+            .insert_session(repo.id, None)
+            .expect("Failed to insert session");
+
+        // Insert output logs
+        let log1 = db
+            .insert_output_log(session.id, OutputStream::Stdout, "Hello stdout!")
+            .expect("Failed to insert output log");
+        let log2 = db
+            .insert_output_log(session.id, OutputStream::Stderr, "Hello stderr!")
+            .expect("Failed to insert output log");
+        db.insert_output_log(session.id, OutputStream::Stdout, "More stdout!")
+            .expect("Failed to insert output log");
+
+        assert_eq!(log1.stream, OutputStream::Stdout);
+        assert_eq!(log2.stream, OutputStream::Stderr);
+
+        // List all logs
+        let all_logs = db
+            .list_output_logs(session.id, None, None, None)
+            .expect("Failed to list output logs");
+        assert_eq!(all_logs.len(), 3);
+
+        // Filter by stdout
+        let stdout_logs = db
+            .list_output_logs(session.id, Some(OutputStream::Stdout), None, None)
+            .expect("Failed to list stdout logs");
+        assert_eq!(stdout_logs.len(), 2);
+        assert!(stdout_logs.iter().all(|l| l.stream == OutputStream::Stdout));
+
+        // Filter by stderr
+        let stderr_logs = db
+            .list_output_logs(session.id, Some(OutputStream::Stderr), None, None)
+            .expect("Failed to list stderr logs");
+        assert_eq!(stderr_logs.len(), 1);
+        assert_eq!(stderr_logs[0].content, "Hello stderr!");
+
+        // Test limit
+        let limited = db
+            .list_output_logs(session.id, None, Some(2), None)
+            .expect("Failed to list limited logs");
+        assert_eq!(limited.len(), 2);
+
+        // Test offset
+        let offset = db
+            .list_output_logs(session.id, None, None, Some(1))
+            .expect("Failed to list offset logs");
+        assert_eq!(offset.len(), 2);
+        assert_eq!(offset[0].content, "Hello stderr!");
+
+        // Test limit + offset
+        let limited_offset = db
+            .list_output_logs(session.id, None, Some(1), Some(1))
+            .expect("Failed to list limited offset logs");
+        assert_eq!(limited_offset.len(), 1);
+        assert_eq!(limited_offset[0].content, "Hello stderr!");
+
+        // Delete logs
+        db.delete_output_logs(session.id)
+            .expect("Failed to delete output logs");
+        let empty = db
+            .list_output_logs(session.id, None, None, None)
+            .expect("Failed to list logs after delete");
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn test_output_log_cascade_delete() {
+        let db = Database::in_memory().expect("Failed to create in-memory database");
+
+        // Create repo, session, and output logs
+        let repo = db
+            .insert_repo("/path/to/repo", "my-repo")
+            .expect("Failed to insert repo");
+        let session = db
+            .insert_session(repo.id, None)
+            .expect("Failed to insert session");
+        db.insert_output_log(session.id, OutputStream::Stdout, "Test output")
+            .expect("Failed to insert output log");
+
+        // Delete session should cascade to output logs
+        db.delete_session(session.id)
+            .expect("Failed to delete session");
+
+        // Output logs should be gone (session cascade)
+        // We can verify by checking that listing returns empty for a non-existent session
+        let logs = db
+            .list_output_logs(session.id, None, None, None)
+            .expect("Failed to list logs");
+        assert!(logs.is_empty());
     }
 }

@@ -1,12 +1,12 @@
 use axum::{
-    extract::{Path as AxumPath, State},
+    extract::{Path as AxumPath, Query, State},
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::db::models::{Message, Session, SessionStatus};
+use crate::db::models::{Message, OutputStream, OutputLog, Session, SessionStatus};
 use crate::error::{AppError, AppResult};
 use crate::ralph::RalphError;
 
@@ -42,6 +42,25 @@ pub struct RunSessionResponse {
     pub session_id: Uuid,
     pub status: SessionStatus,
     pub message: String,
+}
+
+/// Query parameters for fetching session output
+#[derive(Debug, Deserialize)]
+pub struct OutputQueryParams {
+    /// Filter by stream type (stdout, stderr)
+    pub stream: Option<String>,
+    /// Maximum number of entries to return
+    pub limit: Option<i64>,
+    /// Offset for pagination
+    pub offset: Option<i64>,
+}
+
+/// Response for session output
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OutputResponse {
+    pub session_id: Uuid,
+    pub logs: Vec<OutputLog>,
+    pub total: usize,
 }
 
 /// List all sessions
@@ -158,12 +177,46 @@ async fn run_session(
     }))
 }
 
+/// Get session output logs (historical)
+async fn get_session_output(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<Uuid>,
+    Query(params): Query<OutputQueryParams>,
+) -> AppResult<Json<OutputResponse>> {
+    // Verify session exists
+    state.db.get_session(id).map_err(|e| match e {
+        crate::db::DbError::NotFound => AppError::NotFound(format!("Session not found: {}", id)),
+        _ => AppError::Internal(e.to_string()),
+    })?;
+
+    // Parse stream filter
+    let stream_filter = params.stream.and_then(|s| match s.to_lowercase().as_str() {
+        "stdout" => Some(OutputStream::Stdout),
+        "stderr" => Some(OutputStream::Stderr),
+        _ => None,
+    });
+
+    let logs = state
+        .db
+        .list_output_logs(id, stream_filter, params.limit, params.offset)
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let total = logs.len();
+
+    Ok(Json(OutputResponse {
+        session_id: id,
+        logs,
+        total,
+    }))
+}
+
 /// Create the sessions router
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/sessions", get(list_sessions).post(create_session))
         .route("/sessions/{id}", get(get_session).delete(delete_session))
         .route("/sessions/{id}/run", post(run_session))
+        .route("/sessions/{id}/output", get(get_session_output))
 }
 
 #[cfg(test)]
@@ -356,6 +409,119 @@ mod tests {
 
         let fake_id = Uuid::new_v4();
         let response = server.delete(&format!("/sessions/{}", fake_id)).await;
+        response.assert_status_not_found();
+    }
+
+    #[tokio::test]
+    async fn test_get_session_output_empty() {
+        let state = create_test_state();
+        let server = create_test_server(state);
+
+        // Create a repo and session
+        let repo = create_test_repo(&server).await;
+        let response = server
+            .post("/sessions")
+            .json(&CreateSessionRequest {
+                repo_id: repo.id,
+                name: None,
+            })
+            .await;
+        response.assert_status_ok();
+        let session: Session = response.json();
+
+        // Get output (should be empty)
+        let response = server
+            .get(&format!("/sessions/{}/output", session.id))
+            .await;
+        response.assert_status_ok();
+        let output: OutputResponse = response.json();
+        assert_eq!(output.session_id, session.id);
+        assert!(output.logs.is_empty());
+        assert_eq!(output.total, 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_session_output_with_logs() {
+        let state = create_test_state();
+        let server = create_test_server(state.clone());
+
+        // Create a repo and session
+        let repo = create_test_repo(&server).await;
+        let response = server
+            .post("/sessions")
+            .json(&CreateSessionRequest {
+                repo_id: repo.id,
+                name: None,
+            })
+            .await;
+        response.assert_status_ok();
+        let session: Session = response.json();
+
+        // Add some output logs directly via db
+        state
+            .db
+            .insert_output_log(session.id, OutputStream::Stdout, "Hello stdout!")
+            .expect("Failed to insert output log");
+        state
+            .db
+            .insert_output_log(session.id, OutputStream::Stderr, "Hello stderr!")
+            .expect("Failed to insert output log");
+        state
+            .db
+            .insert_output_log(session.id, OutputStream::Stdout, "More stdout!")
+            .expect("Failed to insert output log");
+
+        // Get all output
+        let response = server
+            .get(&format!("/sessions/{}/output", session.id))
+            .await;
+        response.assert_status_ok();
+        let output: OutputResponse = response.json();
+        assert_eq!(output.logs.len(), 3);
+
+        // Get stdout only
+        let response = server
+            .get(&format!("/sessions/{}/output?stream=stdout", session.id))
+            .await;
+        response.assert_status_ok();
+        let output: OutputResponse = response.json();
+        assert_eq!(output.logs.len(), 2);
+        assert!(output.logs.iter().all(|l| l.stream == OutputStream::Stdout));
+
+        // Get stderr only
+        let response = server
+            .get(&format!("/sessions/{}/output?stream=stderr", session.id))
+            .await;
+        response.assert_status_ok();
+        let output: OutputResponse = response.json();
+        assert_eq!(output.logs.len(), 1);
+        assert_eq!(output.logs[0].content, "Hello stderr!");
+
+        // Test limit
+        let response = server
+            .get(&format!("/sessions/{}/output?limit=2", session.id))
+            .await;
+        response.assert_status_ok();
+        let output: OutputResponse = response.json();
+        assert_eq!(output.logs.len(), 2);
+
+        // Test offset
+        let response = server
+            .get(&format!("/sessions/{}/output?offset=1", session.id))
+            .await;
+        response.assert_status_ok();
+        let output: OutputResponse = response.json();
+        assert_eq!(output.logs.len(), 2);
+        assert_eq!(output.logs[0].content, "Hello stderr!");
+    }
+
+    #[tokio::test]
+    async fn test_get_output_nonexistent_session() {
+        let state = create_test_state();
+        let server = create_test_server(state);
+
+        let fake_id = Uuid::new_v4();
+        let response = server.get(&format!("/sessions/{}/output", fake_id)).await;
         response.assert_status_not_found();
     }
 }
