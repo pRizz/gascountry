@@ -42,10 +42,11 @@ Plans:
   2. User can paste a git URL (SSH or HTTPS format) and initiate clone
   3. Clone destination is ~/ralphtown/ by default
   4. Cloned repo is automatically added to repo list and selected on success
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — Backend clone endpoint + git clone function
+- [ ] 02-02-PLAN.md — Frontend CloneDialog + RepoSelector integration
 
 ### Phase 3: Clone Progress
 **Goal**: Users see real-time feedback during clone operations
@@ -97,7 +98,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Cleanup | 1/1 | Complete | 2026-01-17 |
-| 2. Core Clone | 0/? | Not started | - |
+| 2. Core Clone | 0/2 | Planned | - |
 | 3. Clone Progress | 0/? | Not started | - |
 | 4. Error Handling | 0/? | Not started | - |
 | 5. Authentication | 0/? | Not started | - |
