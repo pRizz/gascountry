@@ -10,7 +10,7 @@
 - [x] Step 4: Repository management API
 - [x] Step 5: Session management API
 - [x] Step 6: WebSocket infrastructure
-- [ ] Step 7: Ralph process spawning
+- [x] Step 7: Ralph process spawning
 - [ ] Step 8: Output streaming to WebSocket
 - [ ] Step 9: Interrupt/cancel functionality
 - [ ] Step 10: Git operations
@@ -220,16 +220,40 @@ ralphtown/
 
 ---
 
-## Next: Step 7 - Ralph Process Spawning
+## Step 7 - COMPLETED
+
+### Changes Made
+- [x] Created `backend/src/ralph/mod.rs` - RalphManager struct for process spawning and tracking
+- [x] Implemented `run()` method that spawns `ralph run --autonomous --prompt "..."`
+- [x] Process group setup on Unix via `libc::setpgid(0, 0)` in `pre_exec`
+- [x] Track running processes by session_id in `HashMap<Uuid, ProcessHandle>`
+- [x] Enforce 1 instance per repo constraint via `active_repos: HashMap<Uuid, Uuid>` (repo_id -> session_id)
+- [x] Capture exit code and update session status (Completed/Error based on exit code)
+- [x] Added `POST /api/sessions/{id}/run` endpoint with RunSessionRequest/RunSessionResponse
+- [x] Integrated RalphManager into AppState
+- [x] Updated WebSocket cancel handler to use RalphManager.cancel()
+- [x] Added nix 0.29 and libc 0.2 dependencies for signal handling
+
+### Files Added/Modified
+- `backend/Cargo.toml` - Added nix, libc dependencies
+- `backend/src/ralph/mod.rs` (new) - RalphManager struct with run/cancel methods
+- `backend/src/main.rs` - Added ralph module export
+- `backend/src/api/mod.rs` - Added RalphManager to AppState
+- `backend/src/api/sessions.rs` - Added run_session endpoint
+- `backend/src/ws/mod.rs` - Updated Cancel handler to use RalphManager
+
+### Verification
+- Backend cargo test: ✅ PASS (32 tests - 6 db + 1 health + 8 repo API + 7 session API + 4 ws connections + 3 ws messages + 3 ralph)
+- Frontend tests: ✅ PASS (1 test)
+
+---
+
+## Next: Step 8 - Output Streaming to WebSocket
 
 Tasks:
-- [ ] Create `RalphManager` struct
-- [ ] Implement `run()` method that spawns `ralph run --autonomous --prompt "..."`
-- [ ] Run ralph as process group leader (for signal handling)
-- [ ] Track running processes by session_id
-- [ ] Enforce 1 instance per repo constraint
-- [ ] Capture exit code and update session status
-- [ ] Add REST endpoint to start ralph: `POST /api/sessions/{id}/run`
+- [ ] Output already streams via broadcast channels (implemented in Step 7)
+- [ ] Store output in database (output_logs table) for history
+- [ ] Add endpoint to retrieve historical output: `GET /api/sessions/{id}/output`
 
 ---
 

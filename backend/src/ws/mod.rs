@@ -128,18 +128,19 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                             session_id
                         );
 
-                        // This will be implemented when RalphManager is added
-                        // For now, just broadcast a status update
-                        state
-                            .connections
-                            .broadcast(
-                                session_id,
-                                ServerMessage::Status {
-                                    session_id,
-                                    status: SessionStatus::Cancelled,
-                                },
-                            )
-                            .await;
+                        // Cancel the running ralph process
+                        if let Err(e) = state
+                            .ralph_manager
+                            .cancel(session_id, state.db.clone(), state.connections.clone())
+                            .await
+                        {
+                            tracing::warn!("Failed to cancel session {}: {}", session_id, e);
+                            let _ = tx
+                                .send(ServerMessage::Error {
+                                    message: format!("Failed to cancel: {}", e),
+                                })
+                                .await;
+                        }
                     }
 
                     ClientMessage::Ping => {

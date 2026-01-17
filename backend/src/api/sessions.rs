@@ -1,13 +1,14 @@
 use axum::{
     extract::{Path as AxumPath, State},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::db::models::{Message, Session};
+use crate::db::models::{Message, Session, SessionStatus};
 use crate::error::{AppError, AppResult};
+use crate::ralph::RalphError;
 
 use super::AppState;
 
@@ -26,6 +27,21 @@ pub struct SessionDetails {
     #[serde(flatten)]
     pub session: Session,
     pub messages: Vec<Message>,
+}
+
+/// Request body for running ralph on a session
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RunSessionRequest {
+    /// The prompt to send to ralph
+    pub prompt: String,
+}
+
+/// Response for run session endpoint
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RunSessionResponse {
+    pub session_id: Uuid,
+    pub status: SessionStatus,
+    pub message: String,
 }
 
 /// List all sessions
@@ -90,11 +106,64 @@ async fn delete_session(
     Ok(Json(()))
 }
 
+/// Run ralph on a session
+async fn run_session(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<Uuid>,
+    Json(req): Json<RunSessionRequest>,
+) -> AppResult<Json<RunSessionResponse>> {
+    // Get the session
+    let session = state.db.get_session(id).map_err(|e| match e {
+        crate::db::DbError::NotFound => AppError::NotFound(format!("Session not found: {}", id)),
+        _ => AppError::Internal(e.to_string()),
+    })?;
+
+    // Get the repo path
+    let repo = state.db.get_repo(session.repo_id).map_err(|e| match e {
+        crate::db::DbError::NotFound => {
+            AppError::Internal(format!("Repository not found for session: {}", id))
+        }
+        _ => AppError::Internal(e.to_string()),
+    })?;
+
+    // Start ralph
+    state
+        .ralph_manager
+        .run(
+            id,
+            session.repo_id,
+            &repo.path,
+            &req.prompt,
+            state.db.clone(),
+            state.connections.clone(),
+        )
+        .await
+        .map_err(|e| match e {
+            RalphError::RepoBusy(repo_id) => AppError::BadRequest(format!(
+                "Repository {} already has a running ralph process",
+                repo_id
+            )),
+            RalphError::SessionAlreadyRunning(session_id) => AppError::BadRequest(format!(
+                "Session {} already has a running process",
+                session_id
+            )),
+            RalphError::SpawnFailed(msg) => AppError::Internal(format!("Failed to start ralph: {}", msg)),
+            RalphError::NotRunning(_) => unreachable!(),
+        })?;
+
+    Ok(Json(RunSessionResponse {
+        session_id: id,
+        status: SessionStatus::Running,
+        message: "Ralph process started".to_string(),
+    }))
+}
+
 /// Create the sessions router
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/sessions", get(list_sessions).post(create_session))
         .route("/sessions/{id}", get(get_session).delete(delete_session))
+        .route("/sessions/{id}/run", post(run_session))
 }
 
 #[cfg(test)]

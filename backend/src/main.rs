@@ -1,6 +1,7 @@
 pub mod api;
 pub mod db;
 mod error;
+pub mod ralph;
 pub mod ws;
 
 use axum::{routing::get, Json, Router};
@@ -12,6 +13,7 @@ use api::AppState;
 use db::Database;
 
 pub use error::{AppError, AppResult};
+pub use ralph::RalphManager;
 pub use ws::ConnectionManager;
 
 #[derive(Serialize, Deserialize)]
