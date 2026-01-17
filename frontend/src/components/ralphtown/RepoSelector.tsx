@@ -40,6 +40,7 @@ export function RepoSelector({
   onSelectRepo,
   onSelectBranch,
 }: RepoSelectorProps) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isCloneOpen, setIsCloneOpen] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -48,6 +49,7 @@ export function RepoSelector({
   const { toast } = useToast();
 
   const handleCloneSuccess = (repo: Repo) => {
+    setIsDropdownOpen(false);
     onSelectRepo(mapApiRepoToRepository(repo));
   };
 
@@ -112,7 +114,7 @@ export function RepoSelector({
           if (!open) setCustomPath("");
         }}
       >
-        <DropdownMenu>
+        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
