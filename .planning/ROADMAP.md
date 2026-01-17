@@ -87,10 +87,11 @@ Plans:
   3. User is prompted for SSH passphrase when encrypted SSH key fails
   4. Credential prompts explain where/how credentials are used (trust messaging)
   5. User sees alternative instructions for CLI-based auth setup as fallback
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — Backend credential callback support (git2 credentials, POST endpoint)
+- [ ] 05-02-PLAN.md — Frontend credential inputs with trust messaging and CLI alternative
 
 ## Progress
 
@@ -103,7 +104,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Core Clone | 2/2 | Complete | 2026-01-17 |
 | 3. Clone Progress | 2/2 | Complete | 2026-01-17 |
 | 4. Error Handling | 2/2 | Complete | 2026-01-17 |
-| 5. Authentication | 0/? | Not started | - |
+| 5. Authentication | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-17*
