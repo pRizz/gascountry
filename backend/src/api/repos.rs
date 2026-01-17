@@ -356,7 +356,7 @@ fn error_sse(message: String, help_steps: Vec<String>) -> SseResponse {
             can_retry_with_credentials: false,
         };
         let data = serde_json::to_string(&event).unwrap_or_default();
-        yield Ok(Event::default().event("error").data(data));
+        yield Ok(Event::default().event("clone_error").data(data));
     };
     Sse::new(Box::pin(stream) as SseStream).keep_alive(KeepAlive::default())
 }
@@ -452,7 +452,7 @@ async fn clone_with_progress_sse(
                             can_retry_with_credentials: false,
                         };
                         let data = serde_json::to_string(&event).unwrap_or_default();
-                        yield Ok(Event::default().event("error").data(data));
+                        yield Ok(Event::default().event("clone_error").data(data));
                     }
                 }
             }
@@ -480,7 +480,7 @@ async fn clone_with_progress_sse(
                     can_retry_with_credentials: can_retry,
                 };
                 let data = serde_json::to_string(&event).unwrap_or_default();
-                yield Ok(Event::default().event("error").data(data));
+                yield Ok(Event::default().event("clone_error").data(data));
             }
             Err(e) => {
                 let event = CloneEvent::Error {
@@ -490,7 +490,7 @@ async fn clone_with_progress_sse(
                     can_retry_with_credentials: false,
                 };
                 let data = serde_json::to_string(&event).unwrap_or_default();
-                yield Ok(Event::default().event("error").data(data));
+                yield Ok(Event::default().event("clone_error").data(data));
             }
         }
     };
@@ -591,7 +591,7 @@ async fn clone_with_credentials_sse(
                             can_retry_with_credentials: false,
                         };
                         let data = serde_json::to_string(&event).unwrap_or_default();
-                        yield Ok(Event::default().event("error").data(data));
+                        yield Ok(Event::default().event("clone_error").data(data));
                     }
                 }
             }
@@ -619,7 +619,7 @@ async fn clone_with_credentials_sse(
                     can_retry_with_credentials: can_retry,
                 };
                 let data = serde_json::to_string(&event).unwrap_or_default();
-                yield Ok(Event::default().event("error").data(data));
+                yield Ok(Event::default().event("clone_error").data(data));
             }
             Err(e) => {
                 let event = CloneEvent::Error {
@@ -629,7 +629,7 @@ async fn clone_with_credentials_sse(
                     can_retry_with_credentials: false,
                 };
                 let data = serde_json::to_string(&event).unwrap_or_default();
-                yield Ok(Event::default().event("error").data(data));
+                yield Ok(Event::default().event("clone_error").data(data));
             }
         }
     };

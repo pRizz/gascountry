@@ -78,25 +78,33 @@ export function useCloneProgress(
         }
       });
 
-      // Handle error event
-      eventSource.addEventListener("error", (event) => {
-        // Check if it's a custom error event with data
+      // Track if we received a server error to avoid duplicate error handling
+      let receivedServerError = false;
+
+      // Handle clone_error event (custom event from server with error details)
+      eventSource.addEventListener("clone_error", (event) => {
+        receivedServerError = true;
         const messageEvent = event as MessageEvent;
-        if (messageEvent.data) {
-          try {
-            const data = JSON.parse(messageEvent.data) as {
-              message: string;
-              help_steps?: string[];
-              auth_type?: AuthType;
-              can_retry_with_credentials?: boolean;
-            };
-            onErrorRef.current(data.message, data.help_steps, data.auth_type, data.can_retry_with_credentials);
-          } catch {
-            onErrorRef.current("Clone failed");
-          }
-        } else {
-          // Connection error
-          onErrorRef.current("Connection to server lost");
+        try {
+          const data = JSON.parse(messageEvent.data) as {
+            message: string;
+            help_steps?: string[];
+            auth_type?: AuthType;
+            can_retry_with_credentials?: boolean;
+          };
+          onErrorRef.current(data.message, data.help_steps, data.auth_type, data.can_retry_with_credentials);
+        } catch {
+          onErrorRef.current("Clone failed");
+        }
+        eventSource.close();
+        eventSourceRef.current = null;
+      });
+
+      // Handle connection-level errors (browser's built-in error event)
+      eventSource.addEventListener("error", () => {
+        // Only report connection error if we didn't already receive a server error
+        if (!receivedServerError) {
+          onErrorRef.current("Connection to the server was lost");
         }
         eventSource.close();
         eventSourceRef.current = null;
