@@ -52,6 +52,10 @@ export type CloneProgressEvent =
   | { type: "complete"; data: { repo: Repo; message: string } }
   | { type: "error"; data: { message: string; help_steps?: string[]; auth_type?: AuthType; can_retry_with_credentials?: boolean } };
 
+// --- Orchestrator ---
+
+export type OrchestratorType = "ralph" | "gsd" | "gastown";
+
 // --- Errors ---
 
 export interface ErrorResponse {
@@ -89,6 +93,7 @@ export interface Session {
   id: string;
   repo_id: string;
   name: string | null;
+  orchestrator: OrchestratorType;
   status: SessionStatus;
   created_at: string;
   updated_at: string;
@@ -97,6 +102,7 @@ export interface Session {
 export interface CreateSessionRequest {
   repo_id: string;
   name?: string;
+  orchestrator?: OrchestratorType;
 }
 
 export type MessageRole = "user" | "assistant" | "system";
@@ -113,6 +119,7 @@ export interface SessionDetails {
   id: string;
   repo_id: string;
   name: string | null;
+  orchestrator: OrchestratorType;
   status: SessionStatus;
   created_at: string;
   updated_at: string;
