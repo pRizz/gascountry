@@ -31,6 +31,10 @@ export function CloneDialog({ open, onOpenChange, onCloneSuccess }: CloneDialogP
   const [gitUrl, setGitUrl] = useState("");
   const [cloneProgress, setCloneProgress] = useState<CloneProgress | null>(null);
   const [isCloning, setIsCloning] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<{
+    message: string;
+    helpSteps?: string[];
+  } | null>(null);
   const { toast } = useToast();
 
   const { startClone, cancel } = useCloneProgress({
@@ -46,9 +50,10 @@ export function CloneDialog({ open, onOpenChange, onCloneSuccess }: CloneDialogP
         description: message,
       });
     },
-    onError: (message) => {
+    onError: (message, helpSteps) => {
       setIsCloning(false);
       setCloneProgress(null);
+      setErrorInfo({ message, helpSteps });
       toast({
         title: "Failed to clone repository",
         description: message,
@@ -68,6 +73,7 @@ export function CloneDialog({ open, onOpenChange, onCloneSuccess }: CloneDialogP
       return;
     }
 
+    setErrorInfo(null);
     setIsCloning(true);
     startClone(trimmedUrl);
   };
@@ -81,6 +87,7 @@ export function CloneDialog({ open, onOpenChange, onCloneSuccess }: CloneDialogP
     onOpenChange(newOpen);
     if (!newOpen) {
       setGitUrl("");
+      setErrorInfo(null);
     }
   };
 
@@ -145,6 +152,25 @@ export function CloneDialog({ open, onOpenChange, onCloneSuccess }: CloneDialogP
               <p className="text-xs text-muted-foreground text-center">
                 {getProgressText()}
               </p>
+            </div>
+          )}
+          {errorInfo && (
+            <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+              <p className="text-sm font-medium text-destructive mb-2">
+                {errorInfo.message}
+              </p>
+              {errorInfo.helpSteps && errorInfo.helpSteps.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Troubleshooting steps:
+                  </p>
+                  <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+                    {errorInfo.helpSteps.map((step, index) => (
+                      <li key={index}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>
