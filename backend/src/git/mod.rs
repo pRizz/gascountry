@@ -5,8 +5,10 @@
 //! - Write operations (pull, push, commit, reset, checkout) using CLI subprocess
 
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::cell::RefCell;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::rc::Rc;
 use thiserror::Error;
 use tokio::sync::mpsc;
 
@@ -35,12 +37,16 @@ pub enum CloneError {
     SshAuthFailed {
         message: String,
         help_steps: Vec<String>,
+        /// Hint that passphrase may help (encrypted key detected or passphrase-related error)
+        needs_passphrase: bool,
     },
 
     #[error("HTTPS authentication failed: {message}")]
     HttpsAuthFailed {
         message: String,
         help_steps: Vec<String>,
+        /// True if URL is GitHub (show PAT-specific UI)
+        is_github: bool,
     },
 
     #[error("Network error: {message}")]
@@ -50,30 +56,99 @@ pub enum CloneError {
     OperationFailed { message: String },
 }
 
+/// Credentials for git clone operations
+#[derive(Debug, Clone, Default)]
+pub struct CloneCredentials {
+    /// SSH key passphrase (for encrypted keys)
+    pub ssh_passphrase: Option<String>,
+    /// Custom SSH key path (uses default if not provided)
+    pub ssh_key_path: Option<PathBuf>,
+    /// HTTPS username (or "x-access-token" for GitHub PAT)
+    pub username: Option<String>,
+    /// HTTPS password or GitHub PAT
+    pub password: Option<String>,
+}
+
+/// Tracks which credential methods have been tried to prevent infinite callback loops
+#[derive(Default)]
+struct CredentialState {
+    tried_ssh_agent: bool,
+    tried_ssh_key: bool,
+    tried_userpass: bool,
+}
+
+/// Check if a URL is a GitHub repository
+pub fn is_github_url(url: &str) -> bool {
+    url.contains("github.com")
+}
+
+/// Find the default SSH key in ~/.ssh/
+///
+/// Checks keys in preference order: id_ed25519, id_ecdsa, id_rsa
+/// Returns the first existing key path, or error if none found.
+pub fn find_default_ssh_key() -> Result<PathBuf, git2::Error> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| git2::Error::from_str("Could not find home directory"))?;
+    let ssh_dir = home.join(".ssh");
+
+    // Try keys in preference order (ed25519 is modern and fast)
+    let key_names = ["id_ed25519", "id_ecdsa", "id_rsa"];
+
+    for name in &key_names {
+        let key_path = ssh_dir.join(name);
+        if key_path.exists() {
+            return Ok(key_path);
+        }
+    }
+
+    Err(git2::Error::from_str("No SSH key found in ~/.ssh/"))
+}
+
 /// Classify a git2::Error into a CloneError with appropriate help steps
-pub fn classify_clone_error(err: git2::Error) -> CloneError {
+///
+/// The URL parameter is used to detect GitHub URLs for showing PAT-specific UI hints.
+pub fn classify_clone_error(err: git2::Error, url: &str) -> CloneError {
+    let error_msg = err.message().to_string();
+    let is_github = is_github_url(url);
+
+    // Check if error message indicates passphrase might help
+    let needs_passphrase = error_msg.contains("passphrase")
+        || error_msg.contains("decrypt")
+        || error_msg.contains("encrypted")
+        || error_msg.contains("bad decrypt");
+
     match err.class() {
         git2::ErrorClass::Ssh => CloneError::SshAuthFailed {
-            message: err.message().to_string(),
+            message: error_msg,
             help_steps: vec![
                 "Ensure your SSH key is added to ssh-agent: ssh-add ~/.ssh/id_ed25519".to_string(),
                 "Verify your key is added to GitHub: ssh -T git@github.com".to_string(),
                 "If using a passphrase, the ssh-agent must have the key unlocked".to_string(),
             ],
+            needs_passphrase,
         },
         git2::ErrorClass::Http => CloneError::HttpsAuthFailed {
-            message: err.message().to_string(),
-            help_steps: vec![
-                "HTTPS cloning requires a Personal Access Token (PAT)".to_string(),
-                "Create a PAT at GitHub Settings > Developer Settings > Tokens".to_string(),
-                "Use the PAT as password when prompted, or configure git credential helper".to_string(),
-            ],
+            message: error_msg,
+            help_steps: if is_github {
+                vec![
+                    "GitHub requires a Personal Access Token (PAT) for HTTPS".to_string(),
+                    "Create a PAT at GitHub Settings > Developer Settings > Tokens".to_string(),
+                    "Use the PAT as password when prompted".to_string(),
+                ]
+            } else {
+                vec![
+                    "HTTPS authentication failed".to_string(),
+                    "Check your username and password".to_string(),
+                    "Some services require an access token instead of password".to_string(),
+                ]
+            },
+            is_github,
         },
         git2::ErrorClass::Net => CloneError::NetworkError {
-            message: err.message().to_string(),
+            message: error_msg,
         },
         _ => CloneError::OperationFailed {
-            message: err.message().to_string(),
+            message: error_msg,
         },
     }
 }
@@ -451,7 +526,7 @@ impl GitManager {
     pub fn clone(url: &str, dest: &Path) -> Result<git2::Repository, CloneError> {
         git2::build::RepoBuilder::new()
             .clone(url, dest)
-            .map_err(classify_clone_error)
+            .map_err(|e| classify_clone_error(e, url))
     }
 
     /// Clone a repository with progress reporting
@@ -489,7 +564,7 @@ impl GitManager {
         git2::build::RepoBuilder::new()
             .fetch_options(fetch_options)
             .clone(url, dest)
-            .map_err(classify_clone_error)
+            .map_err(|e| classify_clone_error(e, url))
     }
 
     // --- Write operations using CLI subprocess ---

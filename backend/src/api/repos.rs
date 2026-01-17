@@ -395,10 +395,10 @@ async fn clone_with_progress_sse(
             Ok(Err(clone_error)) => {
                 // Extract help_steps from CloneError variants
                 let (message, help_steps) = match &clone_error {
-                    crate::git::CloneError::SshAuthFailed { message, help_steps } => {
+                    crate::git::CloneError::SshAuthFailed { message, help_steps, .. } => {
                         (message.clone(), help_steps.clone())
                     }
-                    crate::git::CloneError::HttpsAuthFailed { message, help_steps } => {
+                    crate::git::CloneError::HttpsAuthFailed { message, help_steps, .. } => {
                         (message.clone(), help_steps.clone())
                     }
                     crate::git::CloneError::NetworkError { message } => {

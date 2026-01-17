@@ -152,19 +152,19 @@ impl From<DbError> for AppError {
 impl From<crate::git::CloneError> for AppError {
     fn from(err: crate::git::CloneError) -> Self {
         match err {
-            crate::git::CloneError::SshAuthFailed { message, help_steps } => {
+            crate::git::CloneError::SshAuthFailed { message, help_steps, needs_passphrase } => {
                 AppError::UserActionRequired {
                     code: "SSH_AUTH_FAILED".to_string(),
                     message,
-                    details: None,
+                    details: Some(serde_json::json!({ "needs_passphrase": needs_passphrase })),
                     help_steps,
                 }
             }
-            crate::git::CloneError::HttpsAuthFailed { message, help_steps } => {
+            crate::git::CloneError::HttpsAuthFailed { message, help_steps, is_github } => {
                 AppError::UserActionRequired {
                     code: "HTTPS_AUTH_FAILED".to_string(),
                     message,
-                    details: None,
+                    details: Some(serde_json::json!({ "is_github": is_github })),
                     help_steps,
                 }
             }
