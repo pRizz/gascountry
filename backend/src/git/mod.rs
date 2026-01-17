@@ -78,6 +78,39 @@ pub fn classify_clone_error(err: git2::Error) -> CloneError {
     }
 }
 
+use crate::error::AppError;
+
+/// Validate that a repo path exists and is a valid git repository.
+/// Returns a user-friendly error if validation fails.
+pub fn validate_repo_path(path: &Path) -> Result<(), AppError> {
+    if !path.exists() {
+        return Err(AppError::UserActionRequired {
+            code: "REPO_PATH_NOT_FOUND".to_string(),
+            message: format!("Repository path no longer exists: {}", path.display()),
+            details: None,
+            help_steps: vec![
+                "The folder may have been moved or deleted".to_string(),
+                "Check if the path exists on disk".to_string(),
+                format!("Expected location: {}", path.display()),
+                "Remove and re-add the repository if the path has changed".to_string(),
+            ],
+        });
+    }
+    if !path.join(".git").exists() && git2::Repository::open(path).is_err() {
+        return Err(AppError::UserActionRequired {
+            code: "NOT_A_GIT_REPO".to_string(),
+            message: format!("Path exists but is not a git repository: {}", path.display()),
+            details: None,
+            help_steps: vec![
+                "This folder does not contain a .git directory".to_string(),
+                "Initialize with: git init".to_string(),
+                "Or clone a repository to this location".to_string(),
+            ],
+        });
+    }
+    Ok(())
+}
+
 /// File status in git working tree
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -776,5 +809,40 @@ mod tests {
             Err(other) => panic!("Unexpected error type: {:?}", other),
             Ok(_) => panic!("Expected clone to fail for invalid URL"),
         }
+    }
+
+    #[test]
+    fn test_validate_repo_path_nonexistent() {
+        let result = validate_repo_path(Path::new("/nonexistent/path/to/repo"));
+        match result {
+            Err(crate::error::AppError::UserActionRequired { code, help_steps, .. }) => {
+                assert_eq!(code, "REPO_PATH_NOT_FOUND");
+                assert!(!help_steps.is_empty());
+            }
+            _ => panic!("Expected REPO_PATH_NOT_FOUND error"),
+        }
+    }
+
+    #[test]
+    fn test_validate_repo_path_not_a_git_repo() {
+        // Create a temp directory that is NOT a git repo
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+        let result = validate_repo_path(temp_dir.path());
+        match result {
+            Err(crate::error::AppError::UserActionRequired { code, help_steps, .. }) => {
+                assert_eq!(code, "NOT_A_GIT_REPO");
+                assert!(!help_steps.is_empty());
+            }
+            _ => panic!("Expected NOT_A_GIT_REPO error"),
+        }
+    }
+
+    #[test]
+    fn test_validate_repo_path_valid_git_repo() {
+        let (temp_dir, _repo) = create_test_repo();
+
+        let result = validate_repo_path(temp_dir.path());
+        assert!(result.is_ok());
     }
 }

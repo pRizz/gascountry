@@ -110,21 +110,8 @@ async fn add_repo(
 ) -> AppResult<Json<Repo>> {
     let path = Path::new(&req.path);
 
-    // Verify path exists
-    if !path.exists() {
-        return Err(AppError::BadRequest(format!(
-            "Path does not exist: {}",
-            req.path
-        )));
-    }
-
-    // Verify it's a git repository
-    if git2::Repository::open(path).is_err() {
-        return Err(AppError::BadRequest(format!(
-            "Not a git repository: {}",
-            req.path
-        )));
-    }
+    // Validate path exists and is a git repository (returns helpful errors)
+    crate::git::validate_repo_path(path)?;
 
     // Canonicalize path for consistent storage
     let canonical_path = path
@@ -491,7 +478,11 @@ mod tests {
             })
             .await;
 
-        response.assert_status_bad_request();
+        // UserActionRequired returns 422 with help_steps
+        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        let body = response.text();
+        assert!(body.contains("REPO_PATH_NOT_FOUND"));
+        assert!(body.contains("help_steps"));
     }
 
     #[tokio::test]
@@ -510,7 +501,11 @@ mod tests {
             })
             .await;
 
-        response.assert_status_bad_request();
+        // UserActionRequired returns 422 with help_steps
+        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        let body = response.text();
+        assert!(body.contains("NOT_A_GIT_REPO"));
+        assert!(body.contains("help_steps"));
     }
 
     #[tokio::test]
